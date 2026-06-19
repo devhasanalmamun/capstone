@@ -86,6 +86,9 @@ async def lifespan(app: FastAPI):
     app.state.scaler = result.scaler
     app.state.kmeans = result.kmeans
     app.state.pca = result.pca
+    app.state.min_date = result.min_date
+    app.state.max_date = result.max_date
+    app.state.max_date_original = result.max_date
     app.state.demo_log: list[dict] = []
     yield
 
@@ -108,6 +111,21 @@ def _rfm_with_churn(request: Request, threshold: int) -> pd.DataFrame:
     if threshold not in CHURN_THRESHOLD_OPTIONS:
         raise HTTPException(status_code=422, detail=f"threshold must be one of {sorted(CHURN_THRESHOLD_OPTIONS)}")
     return compute_churn(_rfm_base(request), threshold)
+
+
+class Meta(BaseModel):
+    min_date: str
+    max_date: str
+    total_rows: int
+
+
+@app.get("/meta", response_model=Meta)
+def get_meta(request: Request) -> Meta:
+    return Meta(
+        min_date=request.app.state.min_date.strftime("%B %Y"),
+        max_date=request.app.state.max_date.strftime("%B %Y"),
+        total_rows=len(request.app.state.rfm),
+    )
 
 
 @app.get("/summary", response_model=Summary)
@@ -304,10 +322,14 @@ def demo_purchase(body: DemoPurchaseRequest, request: Request) -> DemoPurchaseRe
         "cluster": int(rfm.at[idx, "Cluster"]),
     }
 
+    now = pd.Timestamp.now()
+    if now > request.app.state.max_date:
+        request.app.state.max_date = now
+
     entry = {
         "customer_id": body.customer_id,
         "amount": body.amount,
-        "timestamp": pd.Timestamp.now().strftime("%H:%M:%S"),
+        "timestamp": now.strftime("%H:%M:%S"),
         "before": before,
         "after": after,
     }
@@ -318,6 +340,7 @@ def demo_purchase(body: DemoPurchaseRequest, request: Request) -> DemoPurchaseRe
 @app.post("/demo/reset")
 def demo_reset(request: Request) -> dict:
     request.app.state.rfm = request.app.state.rfm_original.copy()
+    request.app.state.max_date = request.app.state.max_date_original
     request.app.state.demo_log = []
     return {"status": "reset"}
 

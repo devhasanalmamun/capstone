@@ -28,7 +28,12 @@ export function DemoPanel() {
     onSuccess: (result) => {
       setLastResult(result)
       setAmount("")
-      queryClient.invalidateQueries()
+      queryClient.invalidateQueries({ queryKey: ["meta"] })
+      queryClient.invalidateQueries({ queryKey: ["summary"] })
+      queryClient.invalidateQueries({ queryKey: ["clusters"] })
+      queryClient.invalidateQueries({ queryKey: ["customers"] })
+      queryClient.invalidateQueries({ queryKey: ["churn-distribution"] })
+      queryClient.invalidateQueries({ queryKey: ["demo-history"] })
     },
   })
 
@@ -36,7 +41,12 @@ export function DemoPanel() {
     mutationFn: demo.reset,
     onSuccess: () => {
       setLastResult(null)
-      queryClient.invalidateQueries()
+      queryClient.invalidateQueries({ queryKey: ["meta"] })
+      queryClient.invalidateQueries({ queryKey: ["summary"] })
+      queryClient.invalidateQueries({ queryKey: ["clusters"] })
+      queryClient.invalidateQueries({ queryKey: ["customers"] })
+      queryClient.invalidateQueries({ queryKey: ["churn-distribution"] })
+      queryClient.invalidateQueries({ queryKey: ["demo-history"] })
     },
   })
 

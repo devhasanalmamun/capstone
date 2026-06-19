@@ -67,7 +67,14 @@ export const CHURN_THRESHOLDS = [30, 60, 90, 120, 180] as const
 export type ChurnThreshold = (typeof CHURN_THRESHOLDS)[number]
 export const DEFAULT_THRESHOLD: ChurnThreshold = 90
 
+export type Meta = {
+  min_date: string
+  max_date: string
+  total_rows: number
+}
+
 export const api = {
+  meta: () => fetchJson<Meta>("/meta"),
   summary: (threshold: ChurnThreshold = DEFAULT_THRESHOLD) =>
     fetchJson<Summary>(`/summary?threshold=${threshold}`),
   clusters: (threshold: ChurnThreshold = DEFAULT_THRESHOLD) =>

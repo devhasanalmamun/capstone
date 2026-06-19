@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { SummaryCards } from "@/features/summary-cards"
 import { ClusterTable } from "@/features/cluster-table"
 import { CustomerTable } from "@/features/customer-table"
@@ -9,7 +10,7 @@ import { ElbowPlot } from "@/features/elbow-plot"
 import { Researchers } from "@/features/researchers"
 import { DemoPanel } from "@/features/demo-panel"
 import { SectionHeading } from "@/components/section-heading"
-import { CHURN_THRESHOLDS, DEFAULT_THRESHOLD, type ChurnThreshold } from "@/lib/api"
+import { api, CHURN_THRESHOLDS, DEFAULT_THRESHOLD, type ChurnThreshold } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 const REVEAL =
@@ -17,6 +18,7 @@ const REVEAL =
 
 export default function App() {
   const [threshold, setThreshold] = useState<ChurnThreshold>(DEFAULT_THRESHOLD)
+  const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: api.meta })
 
   return (
     <div className="min-h-svh bg-background text-foreground">
@@ -44,8 +46,8 @@ export default function App() {
                 each.
               </p>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                Sourced from the UCI Online Retail dataset, December 2010
-                through December 2011.
+                Sourced from the UCI Online Retail dataset,{" "}
+                {meta ? `${meta.min_date} through ${meta.max_date}` : "loading…"}.
               </p>
               <dl className="mt-6 grid grid-cols-3 gap-4 border-t border-border pt-4 font-mono text-[10px] uppercase tracking-[0.18em]">
                 <div>
@@ -63,7 +65,9 @@ export default function App() {
                 <div>
                   <dt className="text-muted-foreground">Window</dt>
                   <dd className="mt-1.5 font-heading text-base normal-case tracking-normal text-foreground">
-                    2010&ndash;11
+                    {meta
+                      ? `${meta.min_date.slice(-4)}–${meta.max_date.slice(-4)}`
+                      : "—"}
                   </dd>
                 </div>
               </dl>

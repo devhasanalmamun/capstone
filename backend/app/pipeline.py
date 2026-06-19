@@ -26,6 +26,8 @@ class PipelineResult:
     scaler: StandardScaler
     kmeans: KMeans
     pca: PCA
+    min_date: pd.Timestamp
+    max_date: pd.Timestamp
 
 
 def build(data_path: Path | None = None) -> PipelineResult:
@@ -62,7 +64,15 @@ def build(data_path: Path | None = None) -> PipelineResult:
     pca = PCA(n_components=2, random_state=RANDOM_STATE)
     rfm[["PCA1", "PCA2"]] = pca.fit_transform(rfm_scaled)
 
-    return PipelineResult(rfm=rfm.reset_index(), elbow=elbow, scaler=scaler, kmeans=kmeans, pca=pca)
+    return PipelineResult(
+        rfm=rfm.reset_index(),
+        elbow=elbow,
+        scaler=scaler,
+        kmeans=kmeans,
+        pca=pca,
+        min_date=df["InvoiceDate"].min(),
+        max_date=df["InvoiceDate"].max(),
+    )
 
 
 def compute_churn(rfm_base: pd.DataFrame, threshold: int) -> pd.DataFrame:
