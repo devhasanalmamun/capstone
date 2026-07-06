@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -95,9 +96,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Customer Segmentation API", lifespan=lifespan)
 
+# Comma-separated list of allowed frontend origins. Always includes the local
+# Vite dev server; add your deployed frontend URL via the CORS_ORIGINS env var,
+# e.g. CORS_ORIGINS="https://my-frontend.onrender.com".
+_default_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+_env_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+allow_origins = _default_origins + _env_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allow_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
