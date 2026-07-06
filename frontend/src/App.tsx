@@ -10,7 +10,7 @@ import { ElbowPlot } from "@/features/elbow-plot"
 import { Researchers } from "@/features/researchers"
 import { DemoPanel } from "@/features/demo-panel"
 import { SectionHeading } from "@/components/section-heading"
-import { api, CHURN_THRESHOLDS, DEFAULT_THRESHOLD, type ChurnThreshold } from "@/lib/api"
+import { api, DEFAULT_THRESHOLD, type ChurnThreshold } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 const REVEAL =
