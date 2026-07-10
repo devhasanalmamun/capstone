@@ -64,6 +64,13 @@ def build(data_path: Path | None = None) -> PipelineResult:
     pca = PCA(n_components=2, random_state=RANDOM_STATE)
     rfm[["PCA1", "PCA2"]] = pca.fit_transform(rfm_scaled)
 
+    # Get email and password mapping from df and join
+    emails_passwords = df.groupby("CustomerID").agg({
+        "Email": "first",
+        "Password": "first",
+    })
+    rfm = rfm.join(emails_passwords)
+
     return PipelineResult(
         rfm=rfm.reset_index(),
         elbow=elbow,

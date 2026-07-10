@@ -23,6 +23,8 @@ export type Customer = {
   monetary: number
   cluster: number
   churn_prob: number
+  email?: string
+  password?: string
 }
 
 export type CustomerList = {
@@ -104,6 +106,20 @@ export type DemoPurchaseResult = {
   timestamp: string
   before: { recency: number; frequency: number; monetary: number; cluster: number }
   after: { recency: number; frequency: number; monetary: number; cluster: number }
+}
+
+export type LoginResponse = {
+  customer_id: number
+  email: string
+}
+
+export const auth = {
+  login: (email: string, password: string) =>
+    fetchJson<LoginResponse>("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    }),
 }
 
 export const demo = {

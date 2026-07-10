@@ -1,21 +1,17 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { api, demo, type DemoPurchaseResult } from "@/lib/api"
+import { demo, auth, type DemoPurchaseResult } from "@/lib/api"
 import { formatCurrency } from "@/lib/format"
 
 export function DemoPanel() {
   const [open, setOpen] = useState(false)
-  const [customerId, setCustomerId] = useState<string>("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loggedInCustomer, setLoggedInCustomer] = useState<{ customerId: number; email: string } | null>(null)
+  const [loginError, setLoginError] = useState<string | null>(null)
   const [amount, setAmount] = useState<string>("")
   const [lastResult, setLastResult] = useState<DemoPurchaseResult | null>(null)
   const queryClient = useQueryClient()
-
-  const { data: sampleCustomers } = useQuery({
-    queryKey: ["demo-sample-customers"],
-    queryFn: () => api.customers({ limit: 8, offset: 0 }),
-    enabled: open,
-    staleTime: Infinity,
-  })
 
   const { data: history = [] } = useQuery({
     queryKey: ["demo-history"],
@@ -23,8 +19,22 @@ export function DemoPanel() {
     enabled: open,
   })
 
+  const loginMutation = useMutation({
+    mutationFn: () => auth.login(email, password),
+    onSuccess: (data) => {
+      setLoggedInCustomer({ customerId: data.customer_id, email: data.email })
+      setLoginError(null)
+    },
+    onError: (err) => {
+      setLoginError(err instanceof Error ? err.message : "Login failed")
+    },
+  })
+
   const purchase = useMutation({
-    mutationFn: () => demo.purchase(Number(customerId), Number(amount)),
+    mutationFn: () => {
+      if (!loggedInCustomer) throw new Error("Please log in first")
+      return demo.purchase(loggedInCustomer.customerId, Number(amount))
+    },
     onSuccess: (result) => {
       setLastResult(result)
       setAmount("")
@@ -41,6 +51,10 @@ export function DemoPanel() {
     mutationFn: demo.reset,
     onSuccess: () => {
       setLastResult(null)
+      setLoggedInCustomer(null)
+      setEmail("")
+      setPassword("")
+      setLoginError(null)
       queryClient.invalidateQueries({ queryKey: ["meta"] })
       queryClient.invalidateQueries({ queryKey: ["summary"] })
       queryClient.invalidateQueries({ queryKey: ["clusters"] })
@@ -50,8 +64,13 @@ export function DemoPanel() {
     },
   })
 
+  const canLogin =
+    email.trim() !== "" &&
+    password.trim() !== "" &&
+    !loginMutation.isPending
+
   const canBuy =
-    customerId.trim() !== "" &&
+    loggedInCustomer !== null &&
     amount.trim() !== "" &&
     Number(amount) > 0 &&
     !purchase.isPending
@@ -89,76 +108,127 @@ export function DemoPanel() {
           </div>
 
           <div className="p-5 space-y-5">
-            {/* Sample customer chips */}
-            {sampleCustomers && (
-              <div>
-                <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
-                  Sample customers
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {sampleCustomers.items.map((c) => (
-                    <button
-                      key={c.customer_id}
-                      type="button"
-                      onClick={() => { setCustomerId(String(c.customer_id)); setLastResult(null) }}
-                      className={`border px-2.5 py-1 font-mono text-[10px] transition-colors ${
-                        customerId === String(c.customer_id)
-                          ? "border-foreground bg-foreground text-background"
-                          : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
-                      }`}
-                    >
-                      #{c.customer_id}
-                    </button>
-                  ))}
+            {loggedInCustomer === null ? (
+              <>
+                {/* Login Inputs */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value)
+                        setLoginError(null)
+                        setLastResult(null)
+                      }}
+                      placeholder="e.g. customer@example.com"
+                      className="w-full border border-border bg-background px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-foreground focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value)
+                        setLoginError(null)
+                        setLastResult(null)
+                      }}
+                      placeholder="Password"
+                      className="w-full border border-border bg-background px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-foreground focus:outline-none"
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {/* Inputs */}
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
-                  Customer ID
-                </label>
-                <input
-                  type="number"
-                  value={customerId}
-                  onChange={(e) => { setCustomerId(e.target.value); setLastResult(null) }}
-                  placeholder="e.g. 12747"
-                  className="w-full border border-border bg-background px-3 py-2 font-mono text-sm tabular-nums text-foreground placeholder:text-muted-foreground/40 focus:border-foreground focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
-                  Purchase amount (£)
-                </label>
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="e.g. 49.99"
-                  className="w-full border border-border bg-background px-3 py-2 font-mono text-sm tabular-nums text-foreground placeholder:text-muted-foreground/40 focus:border-foreground focus:outline-none"
-                />
-              </div>
-            </div>
+                {/* Login button */}
+                <button
+                  type="button"
+                  onClick={() => loginMutation.mutate()}
+                  disabled={!canLogin}
+                  className="w-full border border-foreground bg-foreground py-2.5 font-mono text-[10px] uppercase tracking-[0.28em] text-background transition-opacity disabled:cursor-not-allowed disabled:opacity-30 enabled:hover:opacity-80"
+                >
+                  {loginMutation.isPending ? "Logging in…" : "Login"}
+                </button>
 
-            {/* Buy button */}
-            <button
-              type="button"
-              onClick={() => purchase.mutate()}
-              disabled={!canBuy}
-              className="w-full border border-foreground bg-foreground py-2.5 font-mono text-[10px] uppercase tracking-[0.28em] text-background transition-opacity disabled:cursor-not-allowed disabled:opacity-30 enabled:hover:opacity-80"
-            >
-              {purchase.isPending ? "Processing…" : "Simulate Purchase"}
-            </button>
+                {/* Login Error */}
+                {loginError && (
+                  <p className="font-mono text-[10px] text-destructive">
+                    {loginError}
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Logged in status */}
+                <div className="border border-border p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1 pr-2">
+                      <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                        Authenticated User
+                      </p>
+                      <p className="font-mono text-xs font-semibold text-foreground truncate" title={loggedInCustomer.email}>
+                        {loggedInCustomer.email}
+                      </p>
+                      <p className="font-mono text-[10px] text-muted-foreground">
+                        ID: #{loggedInCustomer.customerId}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoggedInCustomer(null)
+                        setEmail("")
+                        setPassword("")
+                        setLastResult(null)
+                      }}
+                      className="border border-border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.16em] hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors text-muted-foreground"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </div>
 
-            {/* Error */}
-            {purchase.isError && (
-              <p className="font-mono text-[10px] text-destructive">
-                {purchase.error instanceof Error ? purchase.error.message : "Purchase failed"}
-              </p>
+                {/* Purchase amount input */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                      Purchase amount (£)
+                    </label>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="e.g. 49.99"
+                      className="w-full border border-border bg-background px-3 py-2 font-mono text-sm tabular-nums text-foreground placeholder:text-muted-foreground/40 focus:border-foreground focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Purchase button */}
+                <button
+                  type="button"
+                  onClick={() => purchase.mutate()}
+                  disabled={!canBuy}
+                  className="w-full border border-foreground bg-foreground py-2.5 font-mono text-[10px] uppercase tracking-[0.28em] text-background transition-opacity disabled:cursor-not-allowed disabled:opacity-30 enabled:hover:opacity-80"
+                >
+                  {purchase.isPending ? "Processing…" : "Simulate Purchase"}
+                </button>
+
+                {/* Purchase Error */}
+                {purchase.isError && (
+                  <p className="font-mono text-[10px] text-destructive">
+                    {purchase.error instanceof Error ? purchase.error.message : "Purchase failed"}
+                  </p>
+                )}
+              </>
             )}
 
             {/* Before / after result */}
