@@ -1,14 +1,74 @@
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
+import json
 import os
+import time
 from contextlib import asynccontextmanager
 from typing import Annotated
 
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "demo-jwt-secret-key-12345")
+JWT_ALGORITHM = "HS256"
+
+def create_token(payload: dict, expires_in: int = 3600) -> str:
+    """Create a signed JWT-like token using standard library."""
+    header = {"alg": JWT_ALGORITHM, "typ": "JWT"}
+    payload = payload.copy()
+    payload["exp"] = int(time.time()) + expires_in
+    
+    header_json = json.dumps(header, separators=(',', ':'))
+    payload_json = json.dumps(payload, separators=(',', ':'))
+    
+    header_b64 = base64.urlsafe_b64encode(header_json.encode()).decode().rstrip("=")
+    payload_b64 = base64.urlsafe_b64encode(payload_json.encode()).decode().rstrip("=")
+    
+    signature = hmac.new(
+        JWT_SECRET_KEY.encode(),
+        f"{header_b64}.{payload_b64}".encode(),
+        hashlib.sha256
+    ).digest()
+    sig_b64 = base64.urlsafe_b64encode(signature).decode().rstrip("=")
+    return f"{header_b64}.{payload_b64}.{sig_b64}"
+
+def verify_token(token: str) -> dict | None:
+    """Verify a signed token and return its payload. Returns None if invalid or expired."""
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return None
+        header_b64, payload_b64, sig_b64 = parts
+        
+        # Reconstruct signature and compare
+        expected_sig = hmac.new(
+            JWT_SECRET_KEY.encode(),
+            f"{header_b64}.{payload_b64}".encode(),
+            hashlib.sha256
+        ).digest()
+        expected_sig_b64 = base64.urlsafe_b64encode(expected_sig).decode().rstrip("=")
+        
+        if not hmac.compare_digest(sig_b64, expected_sig_b64):
+            return None
+            
+        # Decode payload
+        padding = "=" * ((4 - len(payload_b64) % 4) % 4)
+        payload_data = base64.urlsafe_b64decode(payload_b64 + padding).decode()
+        payload = json.loads(payload_data)
+        
+        # Check expiration
+        if payload.get("exp", 0) < time.time():
+            return None
+            
+        return payload
+    except Exception:
+        return None
 
 from .pipeline import build, compute_churn
 
@@ -293,8 +353,7 @@ class LoginRequest(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    customer_id: int
-    email: str
+    token: str
 
 
 @app.post("/auth/login", response_model=LoginResponse)
@@ -314,16 +373,17 @@ def auth_login(body: LoginRequest, request: Request) -> LoginResponse:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     row = rfm.loc[mask].iloc[0]
-    return LoginResponse(
-        customer_id=int(row["CustomerID"]),
-        email=str(row["Email"]),
-    )
+    token = create_token({
+        "customer_id": int(row["CustomerID"]),
+        "email": str(row["Email"])
+    }, expires_in=3600)  # Token valid for 1 hour
+    
+    return LoginResponse(token=token)
 
 
 # ── Demo endpoints ────────────────────────────────────────────────────────────
 
 class DemoPurchaseRequest(BaseModel):
-    customer_id: int
     amount: float
 
 
@@ -336,9 +396,23 @@ class DemoPurchaseResult(BaseModel):
 
 
 @app.post("/demo/purchase", response_model=DemoPurchaseResult)
-def demo_purchase(body: DemoPurchaseRequest, request: Request) -> DemoPurchaseResult:
+def demo_purchase(
+    body: DemoPurchaseRequest,
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None
+) -> DemoPurchaseResult:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authentication token")
+    
+    token = authorization.split(" ")[1]
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Token has expired. Please login again.")
+        
+    customer_id = payload["customer_id"]
+    
     rfm = request.app.state.rfm
-    mask = rfm["CustomerID"] == body.customer_id
+    mask = rfm["CustomerID"] == customer_id
     if not mask.any():
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -373,7 +447,7 @@ def demo_purchase(body: DemoPurchaseRequest, request: Request) -> DemoPurchaseRe
         request.app.state.max_date = now
 
     entry = {
-        "customer_id": body.customer_id,
+        "customer_id": customer_id,
         "amount": body.amount,
         "timestamp": now.strftime("%H:%M:%S"),
         "before": before,
