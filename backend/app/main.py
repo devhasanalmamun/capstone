@@ -39,6 +39,8 @@ class Customer(BaseModel):
     monetary: float
     cluster: int
     churn_prob: float
+    email: str | None = None
+    password: str | None = None
 
 
 class CustomerList(BaseModel):
@@ -90,7 +92,8 @@ async def lifespan(app: FastAPI):
     app.state.min_date = result.min_date
     app.state.max_date = result.max_date
     app.state.max_date_original = result.max_date
-    app.state.demo_log: list[dict] = []
+    demo_log: list[dict] = []
+    app.state.demo_log = demo_log
     yield
 
 
@@ -144,9 +147,9 @@ def get_summary(
     rfm = _rfm_with_churn(request, threshold)
     return Summary(
         total_customers=len(rfm),
-        total_revenue=float(rfm["Monetary"].sum()),
-        churn_rate=float(rfm["Churn"].mean()),
-        num_clusters=int(rfm["Cluster"].nunique()),
+        total_revenue=float(rfm["Monetary"].sum()),  # type: ignore
+        churn_rate=float(rfm["Churn"].mean()),  # type: ignore
+        num_clusters=int(rfm["Cluster"].nunique()),  # type: ignore
     )
 
 
@@ -192,10 +195,10 @@ def get_customers(
 ) -> CustomerList:
     rfm = _rfm_with_churn(request, threshold)
     if cluster is not None:
-        rfm = rfm[rfm["Cluster"] == cluster]
-    rfm = rfm[(rfm["Churn_Prob"] >= churn_min) & (rfm["Churn_Prob"] <= churn_max)]
+        rfm = rfm.loc[rfm["Cluster"] == cluster]
+    rfm = rfm.loc[(rfm["Churn_Prob"] >= churn_min) & (rfm["Churn_Prob"] <= churn_max)]
     total = len(rfm)
-    page = rfm.iloc[offset : offset + limit]
+    page: pd.DataFrame = rfm.iloc[offset : offset + limit]  # type: ignore
     items = [
         Customer(
             customer_id=int(r["CustomerID"]),
@@ -204,6 +207,8 @@ def get_customers(
             monetary=float(r["Monetary"]),
             cluster=int(r["Cluster"]),
             churn_prob=float(r["Churn_Prob"]),
+            email=r.get("Email"),
+            password=r.get("Password"),
         )
         for r in page.to_dict(orient="records")
     ]
@@ -213,7 +218,7 @@ def get_customers(
 @app.get("/charts/pca-scatter", response_model=list[PcaPoint])
 def get_pca_scatter(request: Request) -> list[PcaPoint]:
     rfm = _rfm_base(request)
-    points = rfm[["CustomerID", "PCA1", "PCA2", "Cluster"]].copy()
+    points: pd.DataFrame = rfm[["CustomerID", "PCA1", "PCA2", "Cluster"]].copy()  # type: ignore
     points["PCA1"] = points["PCA1"].round(1)
     points["PCA2"] = points["PCA2"].round(1)
     points = points.drop_duplicates(subset=["PCA1", "PCA2", "Cluster"])
@@ -280,6 +285,39 @@ def get_rfm_distribution(
 @app.get("/charts/elbow", response_model=list[ElbowPoint])
 def get_elbow(request: Request) -> list[ElbowPoint]:
     return [ElbowPoint(k=k, wcss=wcss) for k, wcss in request.app.state.elbow]
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    customer_id: int
+    email: str
+
+
+@app.post("/auth/login", response_model=LoginResponse)
+def auth_login(body: LoginRequest, request: Request) -> LoginResponse:
+    rfm = request.app.state.rfm
+    email_clean = body.email.strip().lower()
+    password_clean = body.password.strip()
+
+    mask = (
+        (rfm["Email"].notna())
+        & (rfm["Email"].astype(str).str.strip().str.lower() == email_clean)
+        & (rfm["Password"].notna())
+        & (rfm["Password"].astype(str).str.strip() == password_clean)
+    )
+
+    if not mask.any():
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    row = rfm.loc[mask].iloc[0]
+    return LoginResponse(
+        customer_id=int(row["CustomerID"]),
+        email=str(row["Email"]),
+    )
 
 
 # ── Demo endpoints ────────────────────────────────────────────────────────────

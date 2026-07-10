@@ -47,6 +47,13 @@ const columns: ColumnDef<Customer>[] = [
     ),
   },
   {
+    accessorKey: "email",
+    header: "Email",
+    cell: ({ row }) => (
+      <span className="font-mono text-xs text-muted-foreground select-all">{row.original.email ?? "—"}</span>
+    ),
+  },
+  {
     accessorKey: "recency",
     header: () => <div className="text-right">Recency</div>,
     cell: ({ row }) => (
