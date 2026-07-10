@@ -1,13 +1,58 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { demo, auth, type DemoPurchaseResult } from "@/lib/api"
 import { formatCurrency } from "@/lib/format"
+
+function decodeToken(token: string) {
+  try {
+    const base64Url = token.split(".")[1]
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/")
+    const jsonPayload = decodeURIComponent(
+      window.atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    )
+    return JSON.parse(jsonPayload) as { customer_id: number; email: string; exp: number }
+  } catch {
+    return null
+  }
+}
 
 export function DemoPanel() {
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [loggedInCustomer, setLoggedInCustomer] = useState<{ customerId: number; email: string } | null>(null)
+  const [token, setToken] = useState<string | null>(() => {
+    const stored = localStorage.getItem("token")
+    if (stored) {
+      const decoded = decodeToken(stored)
+      if (decoded && decoded.exp * 1000 > Date.now()) {
+        return stored
+      } else {
+        localStorage.removeItem("token")
+      }
+    }
+    return null
+  })
+  const [loggedInCustomer, setLoggedInCustomer] = useState<{ customerId: number; email: string } | null>(() => {
+    const stored = localStorage.getItem("token")
+    if (stored) {
+      const decoded = decodeToken(stored)
+      if (decoded && decoded.exp * 1000 > Date.now()) {
+        return { customerId: decoded.customer_id, email: decoded.email }
+      }
+    }
+    return null
+  })
+
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem("token", token)
+    } else {
+      localStorage.removeItem("token")
+    }
+  }, [token])
   const [loginError, setLoginError] = useState<string | null>(null)
   const [amount, setAmount] = useState<string>("")
   const [lastResult, setLastResult] = useState<DemoPurchaseResult | null>(null)
@@ -22,8 +67,14 @@ export function DemoPanel() {
   const loginMutation = useMutation({
     mutationFn: () => auth.login(email, password),
     onSuccess: (data) => {
-      setLoggedInCustomer({ customerId: data.customer_id, email: data.email })
-      setLoginError(null)
+      const decoded = decodeToken(data.token)
+      if (decoded) {
+        setToken(data.token)
+        setLoggedInCustomer({ customerId: decoded.customer_id, email: decoded.email })
+        setLoginError(null)
+      } else {
+        setLoginError("Invalid token structure")
+      }
     },
     onError: (err) => {
       setLoginError(err instanceof Error ? err.message : "Login failed")
@@ -32,8 +83,8 @@ export function DemoPanel() {
 
   const purchase = useMutation({
     mutationFn: () => {
-      if (!loggedInCustomer) throw new Error("Please log in first")
-      return demo.purchase(loggedInCustomer.customerId, Number(amount))
+      if (!loggedInCustomer || !token) throw new Error("Please log in first")
+      return demo.purchase(Number(amount), token)
     },
     onSuccess: (result) => {
       setLastResult(result)
@@ -45,6 +96,12 @@ export function DemoPanel() {
       queryClient.invalidateQueries({ queryKey: ["churn-distribution"] })
       queryClient.invalidateQueries({ queryKey: ["demo-history"] })
     },
+    onError: (err) => {
+      if (err instanceof Error && (err.message.includes("expired") || err.message.includes("401") || err.message.includes("Unauthorized"))) {
+        setLoggedInCustomer(null)
+        setToken(null)
+      }
+    },
   })
 
   const reset = useMutation({
@@ -52,6 +109,7 @@ export function DemoPanel() {
     onSuccess: () => {
       setLastResult(null)
       setLoggedInCustomer(null)
+      setToken(null)
       setEmail("")
       setPassword("")
       setLoginError(null)
@@ -89,7 +147,7 @@ export function DemoPanel() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-16 right-6 z-50 w-[340px] border border-border bg-background shadow-2xl">
+        <div className="fixed bottom-16 right-6 z-50 w-85 border border-border bg-background shadow-2xl">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
@@ -183,6 +241,7 @@ export function DemoPanel() {
                       type="button"
                       onClick={() => {
                         setLoggedInCustomer(null)
+                        setToken(null)
                         setEmail("")
                         setPassword("")
                         setLastResult(null)

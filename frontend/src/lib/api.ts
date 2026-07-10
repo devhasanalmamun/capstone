@@ -61,7 +61,17 @@ export type ElbowPoint = {
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, init)
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  if (!res.ok) {
+    try {
+      const body = await res.json() as { detail?: string }
+      if (body && typeof body.detail === "string") {
+        throw new Error(body.detail)
+      }
+    } catch {
+      // Ignore JSON parsing or custom detail error parsing errors; fall back to generic HTTP status below.
+    }
+    throw new Error(`${res.status} ${res.statusText}`)
+  }
   return res.json() as Promise<T>
 }
 
@@ -109,8 +119,7 @@ export type DemoPurchaseResult = {
 }
 
 export type LoginResponse = {
-  customer_id: number
-  email: string
+  token: string
 }
 
 export const auth = {
@@ -123,11 +132,14 @@ export const auth = {
 }
 
 export const demo = {
-  purchase: (customer_id: number, amount: number) =>
+  purchase: (amount: number, token: string) =>
     fetchJson<DemoPurchaseResult>("/demo/purchase", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ customer_id, amount }),
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ amount }),
     }),
   reset: () =>
     fetchJson<{ status: string }>("/demo/reset", { method: "POST" }),

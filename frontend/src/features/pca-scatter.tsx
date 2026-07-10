@@ -54,9 +54,9 @@ export function PcaScatter() {
       {error ? (
         <p className="text-destructive">Failed to load scatter.</p>
       ) : isLoading || !data ? (
-        <Skeleton className="aspect-[16/10] w-full" />
+        <Skeleton className="aspect-16/10 w-full" />
       ) : (
-        <ChartContainer config={chartConfig} className="aspect-[16/10] w-full">
+        <ChartContainer config={chartConfig} className="aspect-16/10 w-full">
           <ScatterChart accessibilityLayer margin={{ top: 8, right: 12, left: -4, bottom: 0 }}>
             <CartesianGrid strokeDasharray="2 4" stroke="var(--border)" />
             <XAxis
