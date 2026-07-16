@@ -82,16 +82,29 @@ def build(data_path: Path | None = None) -> PipelineResult:
     )
 
 
-def compute_churn(rfm_base: pd.DataFrame, threshold: int) -> pd.DataFrame:
-    """Return rfm_base with Churn and Churn_Prob columns added for the given threshold."""
-    rfm = rfm_base.copy()
-    rfm["Churn"] = (rfm["Recency"] > threshold).astype(int)
-    features = rfm[["Recency", "Frequency", "Monetary"]]
-    target = rfm["Churn"]
+def train_churn_model(rfm_base: pd.DataFrame, threshold: int) -> LogisticRegression:
+    """Train and return a LogisticRegression model for the given churn threshold."""
+    churn = (rfm_base["Recency"] > threshold).astype(int)
+    features = rfm_base[["Recency", "Frequency", "Monetary"]]
     x_train, _, y_train, _ = train_test_split(
-        features, target, test_size=0.2, random_state=RANDOM_STATE, stratify=target,
+        features, churn, test_size=0.2, random_state=RANDOM_STATE, stratify=churn,
     )
     model = LogisticRegression()
     model.fit(x_train, y_train)
+    return model
+
+
+def predict_churn(rfm_base: pd.DataFrame, model: LogisticRegression, threshold: int) -> pd.DataFrame:
+    """Add Churn and Churn_Prob columns to rfm_base using the pre-fitted model and threshold."""
+    rfm = rfm_base.copy()
+    rfm["Churn"] = (rfm["Recency"] > threshold).astype(int)
+    features = rfm[["Recency", "Frequency", "Monetary"]]
     rfm["Churn_Prob"] = model.predict_proba(features)[:, 1]
     return rfm
+
+
+def compute_churn(rfm_base: pd.DataFrame, threshold: int) -> pd.DataFrame:
+    """Return rfm_base with Churn and Churn_Prob columns added for the given threshold."""
+    model = train_churn_model(rfm_base, threshold)
+    return predict_churn(rfm_base, model, threshold)
+
