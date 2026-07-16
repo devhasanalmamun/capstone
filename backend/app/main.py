@@ -11,12 +11,14 @@ from typing import Annotated
 
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, Header, HTTPException, Query, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
 JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "demo-jwt-secret-key-12345")
 JWT_ALGORITHM = "HS256"
+security = HTTPBearer(auto_error=False)
 
 def create_token(payload: dict, expires_in: int = 3600) -> str:
     """Create a signed JWT-like token using standard library."""
@@ -70,7 +72,7 @@ def verify_token(token: str) -> dict | None:
     except Exception:
         return None
 
-from .pipeline import build, compute_churn
+from .pipeline import build, compute_churn, train_churn_model, predict_churn
 
 CHURN_THRESHOLD_OPTIONS = {30, 60, 90, 120, 180}
 DEFAULT_THRESHOLD = 90
@@ -100,7 +102,6 @@ class Customer(BaseModel):
     cluster: int
     churn_prob: float
     email: str | None = None
-    password: str | None = None
 
 
 class CustomerList(BaseModel):
@@ -140,6 +141,111 @@ class ElbowPoint(BaseModel):
     wcss: float
 
 
+def _clipped_histogram(values: np.ndarray, bins: int) -> list[RfmBin]:
+    lo = float(np.min(values))
+    hi = float(np.percentile(values, 99))
+    if hi <= lo:
+        hi = float(np.max(values))
+    counts, edges = np.histogram(values, bins=bins, range=(lo, hi))
+    return [
+        RfmBin(
+            bin_start=float(edges[i]),
+            bin_end=float(edges[i + 1]),
+            midpoint=float((edges[i] + edges[i + 1]) / 2),
+            count=int(counts[i]),
+        )
+        for i in range(len(counts))
+    ]
+
+
+def build_summary_payload(rfm: pd.DataFrame) -> Summary:
+    return Summary(
+        total_customers=len(rfm),
+        total_revenue=float(rfm["Monetary"].sum()),
+        churn_rate=rfm["Churn"].mean(),
+        num_clusters=rfm["Cluster"].nunique(),
+    )
+
+
+def build_clusters_payload(rfm: pd.DataFrame) -> list[ClusterStats]:
+    grouped = (
+        rfm.groupby("Cluster")
+        .agg(
+            size=("CustomerID", "count"),
+            mean_recency=("Recency", "mean"),
+            mean_frequency=("Frequency", "mean"),
+            mean_monetary=("Monetary", "mean"),
+            churn_rate=("Churn", "mean"),
+        )
+        .reset_index()
+    )
+    return [
+        ClusterStats(
+            cluster=int(r["Cluster"]),
+            size=int(r["size"]),
+            mean_recency=float(r["mean_recency"]),
+            mean_frequency=float(r["mean_frequency"]),
+            mean_monetary=float(r["mean_monetary"]),
+            churn_rate=float(r["churn_rate"]),
+        )
+        for r in grouped.to_dict(orient="records")
+    ]
+
+
+def build_churn_dist_payload(rfm: pd.DataFrame, bins: int = 20) -> list[ChurnBin]:
+    counts, edges = np.histogram(rfm["Churn_Prob"].to_numpy(), bins=bins, range=(0.0, 1.0))
+    return [
+        ChurnBin(
+            bin_start=float(edges[i]),
+            bin_end=float(edges[i + 1]),
+            midpoint=float((edges[i] + edges[i + 1]) / 2),
+            count=int(counts[i]),
+        )
+        for i in range(len(counts))
+    ]
+
+
+def build_rfm_dist_payload(rfm: pd.DataFrame, bins: int = 30) -> RfmDistributions:
+    return RfmDistributions(
+        recency=_clipped_histogram(rfm["Recency"].to_numpy(), bins),
+        frequency=_clipped_histogram(rfm["Frequency"].to_numpy(), bins),
+        monetary=_clipped_histogram(rfm["Monetary"].to_numpy(), bins),
+    )
+
+
+def build_pca_scatter_payload(rfm: pd.DataFrame) -> list[PcaPoint]:
+    points: pd.DataFrame = rfm[["CustomerID", "PCA1", "PCA2", "Cluster"]].copy()  # type: ignore
+    points["PCA1"] = points["PCA1"].round(1)
+    points["PCA2"] = points["PCA2"].round(1)
+    points = points.drop_duplicates(subset=["PCA1", "PCA2", "Cluster"])
+    return [
+        PcaPoint(
+            customer_id=int(r["CustomerID"]),
+            pca1=float(r["PCA1"]),
+            pca2=float(r["PCA2"]),
+            cluster=int(r["Cluster"]),
+        )
+        for r in points.to_dict(orient="records")
+    ]
+
+
+def refresh_all_caches(app: FastAPI):
+    app.state.summary_cache = {
+        t: build_summary_payload(app.state.rfm_by_threshold[t])
+        for t in CHURN_THRESHOLD_OPTIONS
+    }
+    app.state.clusters_cache = {
+        t: build_clusters_payload(app.state.rfm_by_threshold[t])
+        for t in CHURN_THRESHOLD_OPTIONS
+    }
+    app.state.churn_dist_cache = {
+        t: build_churn_dist_payload(app.state.rfm_by_threshold[t])
+        for t in CHURN_THRESHOLD_OPTIONS
+    }
+    app.state.rfm_dist_cache = build_rfm_dist_payload(app.state.rfm)
+    app.state.pca_scatter_cache = build_pca_scatter_payload(app.state.rfm)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     result = build()
@@ -154,6 +260,17 @@ async def lifespan(app: FastAPI):
     app.state.max_date_original = result.max_date
     demo_log: list[dict] = []
     app.state.demo_log = demo_log
+
+    # Train and store models for each threshold and baseline dataframes
+    app.state.churn_models = {}
+    app.state.rfm_by_threshold = {}
+    for threshold in CHURN_THRESHOLD_OPTIONS:
+        model = train_churn_model(app.state.rfm, threshold)
+        app.state.churn_models[threshold] = model
+        app.state.rfm_by_threshold[threshold] = predict_churn(app.state.rfm, model, threshold)
+
+    # Cache response payloads
+    refresh_all_caches(app)
     yield
 
 
@@ -181,7 +298,7 @@ def _rfm_base(request: Request) -> pd.DataFrame:
 def _rfm_with_churn(request: Request, threshold: int) -> pd.DataFrame:
     if threshold not in CHURN_THRESHOLD_OPTIONS:
         raise HTTPException(status_code=422, detail=f"threshold must be one of {sorted(CHURN_THRESHOLD_OPTIONS)}")
-    return compute_churn(_rfm_base(request), threshold)
+    return request.app.state.rfm_by_threshold[threshold]
 
 
 class Meta(BaseModel):
@@ -204,13 +321,9 @@ def get_summary(
     request: Request,
     threshold: Annotated[int, Query()] = DEFAULT_THRESHOLD,
 ) -> Summary:
-    rfm = _rfm_with_churn(request, threshold)
-    return Summary(
-        total_customers=len(rfm),
-        total_revenue=float(rfm["Monetary"].sum()),  # type: ignore
-        churn_rate=float(rfm["Churn"].mean()),  # type: ignore
-        num_clusters=int(rfm["Cluster"].nunique()),  # type: ignore
-    )
+    if threshold not in CHURN_THRESHOLD_OPTIONS:
+        raise HTTPException(status_code=422, detail=f"threshold must be one of {sorted(CHURN_THRESHOLD_OPTIONS)}")
+    return request.app.state.summary_cache[threshold]
 
 
 @app.get("/clusters", response_model=list[ClusterStats])
@@ -218,29 +331,9 @@ def get_clusters(
     request: Request,
     threshold: Annotated[int, Query()] = DEFAULT_THRESHOLD,
 ) -> list[ClusterStats]:
-    rfm = _rfm_with_churn(request, threshold)
-    grouped = (
-        rfm.groupby("Cluster")
-        .agg(
-            size=("CustomerID", "count"),
-            mean_recency=("Recency", "mean"),
-            mean_frequency=("Frequency", "mean"),
-            mean_monetary=("Monetary", "mean"),
-            churn_rate=("Churn", "mean"),
-        )
-        .reset_index()
-    )
-    return [
-        ClusterStats(
-            cluster=int(r["Cluster"]),
-            size=int(r["size"]),
-            mean_recency=float(r["mean_recency"]),
-            mean_frequency=float(r["mean_frequency"]),
-            mean_monetary=float(r["mean_monetary"]),
-            churn_rate=float(r["churn_rate"]),
-        )
-        for r in grouped.to_dict(orient="records")
-    ]
+    if threshold not in CHURN_THRESHOLD_OPTIONS:
+        raise HTTPException(status_code=422, detail=f"threshold must be one of {sorted(CHURN_THRESHOLD_OPTIONS)}")
+    return request.app.state.clusters_cache[threshold]
 
 
 @app.get("/customers", response_model=CustomerList)
@@ -268,7 +361,6 @@ def get_customers(
             cluster=int(r["Cluster"]),
             churn_prob=float(r["Churn_Prob"]),
             email=r.get("Email"),
-            password=r.get("Password"),
         )
         for r in page.to_dict(orient="records")
     ]
@@ -277,20 +369,7 @@ def get_customers(
 
 @app.get("/charts/pca-scatter", response_model=list[PcaPoint])
 def get_pca_scatter(request: Request) -> list[PcaPoint]:
-    rfm = _rfm_base(request)
-    points: pd.DataFrame = rfm[["CustomerID", "PCA1", "PCA2", "Cluster"]].copy()  # type: ignore
-    points["PCA1"] = points["PCA1"].round(1)
-    points["PCA2"] = points["PCA2"].round(1)
-    points = points.drop_duplicates(subset=["PCA1", "PCA2", "Cluster"])
-    return [
-        PcaPoint(
-            customer_id=int(r["CustomerID"]),
-            pca1=float(r["PCA1"]),
-            pca2=float(r["PCA2"]),
-            cluster=int(r["Cluster"]),
-        )
-        for r in points.to_dict(orient="records")
-    ]
+    return request.app.state.pca_scatter_cache
 
 
 @app.get("/charts/churn-distribution", response_model=list[ChurnBin])
@@ -299,34 +378,12 @@ def get_churn_distribution(
     bins: Annotated[int, Query(ge=5, le=100)] = 20,
     threshold: Annotated[int, Query()] = DEFAULT_THRESHOLD,
 ) -> list[ChurnBin]:
+    if threshold not in CHURN_THRESHOLD_OPTIONS:
+        raise HTTPException(status_code=422, detail=f"threshold must be one of {sorted(CHURN_THRESHOLD_OPTIONS)}")
+    if bins == 20:
+        return request.app.state.churn_dist_cache[threshold]
     rfm = _rfm_with_churn(request, threshold)
-    counts, edges = np.histogram(rfm["Churn_Prob"].to_numpy(), bins=bins, range=(0.0, 1.0))
-    return [
-        ChurnBin(
-            bin_start=float(edges[i]),
-            bin_end=float(edges[i + 1]),
-            midpoint=float((edges[i] + edges[i + 1]) / 2),
-            count=int(counts[i]),
-        )
-        for i in range(len(counts))
-    ]
-
-
-def _clipped_histogram(values: np.ndarray, bins: int) -> list[RfmBin]:
-    lo = float(np.min(values))
-    hi = float(np.percentile(values, 99))
-    if hi <= lo:
-        hi = float(np.max(values))
-    counts, edges = np.histogram(values, bins=bins, range=(lo, hi))
-    return [
-        RfmBin(
-            bin_start=float(edges[i]),
-            bin_end=float(edges[i + 1]),
-            midpoint=float((edges[i] + edges[i + 1]) / 2),
-            count=int(counts[i]),
-        )
-        for i in range(len(counts))
-    ]
+    return build_churn_dist_payload(rfm, bins)
 
 
 @app.get("/charts/rfm-distribution", response_model=RfmDistributions)
@@ -334,12 +391,10 @@ def get_rfm_distribution(
     request: Request,
     bins: Annotated[int, Query(ge=5, le=100)] = 30,
 ) -> RfmDistributions:
+    if bins == 30:
+        return request.app.state.rfm_dist_cache
     rfm = _rfm_base(request)
-    return RfmDistributions(
-        recency=_clipped_histogram(rfm["Recency"].to_numpy(), bins),
-        frequency=_clipped_histogram(rfm["Frequency"].to_numpy(), bins),
-        monetary=_clipped_histogram(rfm["Monetary"].to_numpy(), bins),
-    )
+    return build_rfm_dist_payload(rfm, bins)
 
 
 @app.get("/charts/elbow", response_model=list[ElbowPoint])
@@ -399,12 +454,22 @@ class DemoPurchaseResult(BaseModel):
 def demo_purchase(
     body: DemoPurchaseRequest,
     request: Request,
-    authorization: Annotated[str | None, Header()] = None
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)] = None
 ) -> DemoPurchaseResult:
-    if not authorization or not authorization.startswith("Bearer "):
+    token = None
+    if credentials:
+        token = credentials.credentials
+    else:
+        auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
+        if auth_header:
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
+            else:
+                token = auth_header
+
+    if not token:
         raise HTTPException(status_code=401, detail="Missing or invalid authentication token")
     
-    token = authorization.split(" ")[1]
     payload = verify_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Token has expired. Please login again.")
@@ -442,6 +507,30 @@ def demo_purchase(
         "cluster": int(rfm.at[idx, "Cluster"]),
     }
 
+    # Update each threshold's dataframe copy with new values and perform inference
+    for t in CHURN_THRESHOLD_OPTIONS:
+        df_t = request.app.state.rfm_by_threshold[t]
+        mask_t = df_t["CustomerID"] == customer_id
+        if mask_t.any():
+            idx_t = df_t.index[mask_t][0]
+            df_t.at[idx_t, "Monetary"] = rfm.at[idx, "Monetary"]
+            df_t.at[idx_t, "Frequency"] = rfm.at[idx, "Frequency"]
+            df_t.at[idx_t, "Recency"] = rfm.at[idx, "Recency"]
+            df_t.at[idx_t, "Cluster"] = rfm.at[idx, "Cluster"]
+            df_t.at[idx_t, "PCA1"] = rfm.at[idx, "PCA1"]
+            df_t.at[idx_t, "PCA2"] = rfm.at[idx, "PCA2"]
+            
+            model = request.app.state.churn_models[t]
+            row_feats = pd.DataFrame(
+                [[0, rfm.at[idx, "Frequency"], rfm.at[idx, "Monetary"]]],
+                columns=["Recency", "Frequency", "Monetary"]
+            )
+            df_t.at[idx_t, "Churn"] = 0
+            df_t.at[idx_t, "Churn_Prob"] = float(model.predict_proba(row_feats)[0, 1])
+
+    # Refresh cached response payloads
+    refresh_all_caches(request.app)
+
     now = pd.Timestamp.now()
     if now > request.app.state.max_date:
         request.app.state.max_date = now
@@ -462,6 +551,14 @@ def demo_reset(request: Request) -> dict:
     request.app.state.rfm = request.app.state.rfm_original.copy()
     request.app.state.max_date = request.app.state.max_date_original
     request.app.state.demo_log = []
+
+    # Recompute threshold dataframes from original RFM
+    for threshold in CHURN_THRESHOLD_OPTIONS:
+        model = request.app.state.churn_models[threshold]
+        request.app.state.rfm_by_threshold[threshold] = predict_churn(request.app.state.rfm, model, threshold)
+
+    # Refresh cached response payloads
+    refresh_all_caches(request.app)
     return {"status": "reset"}
 
 
