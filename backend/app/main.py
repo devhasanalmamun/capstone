@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import time
+import random
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -72,10 +73,26 @@ def verify_token(token: str) -> dict | None:
     except Exception:
         return None
 
-from .pipeline import build, compute_churn, train_churn_model, predict_churn
+from .pipeline import build, compute_churn, train_churn_model, predict_churn, get_products_catalog
+from .database import init_db, populate_products_if_empty, get_db_connection
 
 CHURN_THRESHOLD_OPTIONS = {30, 60, 90, 120, 180}
 DEFAULT_THRESHOLD = 90
+
+
+class ProductResponse(BaseModel):
+    id: str
+    name: str
+    description: str
+    price: float
+    imageUrl: str
+    rating: float
+    category: str
+
+
+class PurchaseItem(BaseModel):
+    productId: str
+    quantity: int
 
 
 class Summary(BaseModel):
@@ -261,6 +278,23 @@ async def lifespan(app: FastAPI):
     demo_log: list[dict] = []
     app.state.demo_log = demo_log
 
+    # Initialize SQLite database and tables
+    init_db()
+    
+    # Extract unique products from raw CSV if needed and seed the SQLite products table
+    raw_products = get_products_catalog()
+    populate_products_if_empty(raw_products)
+    
+    # Load products lookup into memory for O(1) existence checks and price validations
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM products")
+    products_catalog = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    app.state.products_catalog = products_catalog
+    app.state.products_lookup = {p["id"]: p for p in products_catalog}
+
     # Train and store models for each threshold and baseline dataframes
     app.state.churn_models = {}
     app.state.rfm_by_threshold = {}
@@ -402,6 +436,57 @@ def get_elbow(request: Request) -> list[ElbowPoint]:
     return [ElbowPoint(k=k, wcss=wcss) for k, wcss in request.app.state.elbow]
 
 
+@app.get("/products", response_model=list[ProductResponse])
+def get_products(
+    request: Request,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=500)] = 20,
+    search: Annotated[str | None, Query()] = None,
+    category: Annotated[str | None, Query()] = None,
+) -> list[ProductResponse]:
+    # Query database directly using page and limit for pagination
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    query = "SELECT * FROM products WHERE 1=1"
+    params = []
+    
+    if category:
+        query += " AND LOWER(category) = ?"
+        params.append(category.strip().lower())
+        
+    if search:
+        query += " AND (LOWER(name) LIKE ? OR LOWER(id) LIKE ?)"
+        params.append(f"%{search.strip().lower()}%")
+        params.append(f"%{search.strip().lower()}%")
+        
+    # Order by id to ensure deterministic pagination order
+    query += " ORDER BY id ASC"
+    
+    # Calculate offset
+    offset = (page - 1) * limit
+    
+    query += " LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+    
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    return [
+        ProductResponse(
+            id=row["id"],
+            name=row["name"],
+            description=row["description"],
+            price=row["price"],
+            imageUrl=row["imageUrl"],
+            rating=row["rating"],
+            category=row["category"]
+        )
+        for row in rows
+    ]
+
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -439,7 +524,8 @@ def auth_login(body: LoginRequest, request: Request) -> LoginResponse:
 # ── Demo endpoints ────────────────────────────────────────────────────────────
 
 class DemoPurchaseRequest(BaseModel):
-    amount: float
+    productId: str
+    quantity: int
 
 
 class DemoPurchaseResult(BaseModel):
@@ -489,7 +575,43 @@ def demo_purchase(
         "cluster": int(rfm.at[idx, "Cluster"]),
     }
 
-    rfm.at[idx, "Monetary"] = float(rfm.at[idx, "Monetary"]) + body.amount
+    # 1. Log purchase in SQLite purchases table
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Check if product exists in database
+    cursor.execute("SELECT * FROM products WHERE id = ?", (body.productId,))
+    prod = cursor.fetchone()
+    if not prod:
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Product with ID '{body.productId}' not found in database.")
+        
+    product_price = prod["price"]
+    
+    # Generate unique 6-digit invoice number
+    import random
+    generated_invoice = str(random.randint(580000, 599999))
+    
+    now_str = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    try:
+        cursor.execute(
+            """
+            INSERT OR REPLACE INTO purchases (invoice_no, customer_id, product_id, price, quantity, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (generated_invoice, customer_id, body.productId, product_price, body.quantity, now_str)
+        )
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Database error while saving purchase: {str(e)}")
+    finally:
+        conn.close()
+                
+    total_amount = product_price * body.quantity
+
+    rfm.at[idx, "Monetary"] = float(rfm.at[idx, "Monetary"]) + total_amount
     rfm.at[idx, "Frequency"] = int(rfm.at[idx, "Frequency"]) + 1
     rfm.at[idx, "Recency"] = 0
 
@@ -537,7 +659,7 @@ def demo_purchase(
 
     entry = {
         "customer_id": customer_id,
-        "amount": body.amount,
+        "amount": total_amount,
         "timestamp": now.strftime("%H:%M:%S"),
         "before": before,
         "after": after,

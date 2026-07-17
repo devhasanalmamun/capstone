@@ -85,6 +85,16 @@ export type Meta = {
   total_rows: number
 }
 
+export type Product = {
+  id: string
+  name: string
+  description: string
+  price: number
+  imageUrl: string
+  rating: number
+  category: string
+}
+
 export const api = {
   meta: () => fetchJson<Meta>("/meta"),
   summary: (threshold: ChurnThreshold = DEFAULT_THRESHOLD) =>
@@ -108,6 +118,15 @@ export const api = {
   rfmDistribution: (bins = 30) =>
     fetchJson<RfmDistributions>(`/charts/rfm-distribution?bins=${bins}`),
   elbow: () => fetchJson<ElbowPoint[]>("/charts/elbow"),
+  products: (page = 1, limit = 50, search?: string, category?: string) => {
+    const q = new URLSearchParams()
+    q.set("page", String(page))
+    q.set("limit", String(limit))
+    if (search) q.set("search", search)
+    if (category) q.set("category", category)
+    const qs = q.toString()
+    return fetchJson<Product[]>(`/products${qs ? `?${qs}` : ""}`)
+  },
 }
 
 export type DemoPurchaseResult = {
@@ -132,14 +151,14 @@ export const auth = {
 }
 
 export const demo = {
-  purchase: (amount: number, token: string) =>
+  purchase: (productId: string, quantity: number, token: string) =>
     fetchJson<DemoPurchaseResult>("/demo/purchase", {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`
       },
-      body: JSON.stringify({ amount }),
+      body: JSON.stringify({ productId, quantity }),
     }),
   reset: () =>
     fetchJson<{ status: string }>("/demo/reset", { method: "POST" }),
