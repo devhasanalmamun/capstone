@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { demo, auth, type DemoPurchaseResult } from "@/lib/api"
+import { api, demo, auth, type DemoPurchaseResult } from "@/lib/api"
 import { formatCurrency } from "@/lib/format"
 
 function decodeToken(token: string) {
@@ -54,7 +54,8 @@ export function DemoPanel() {
     }
   }, [token])
   const [loginError, setLoginError] = useState<string | null>(null)
-  const [amount, setAmount] = useState<string>("")
+  const [selectedProductId, setSelectedProductId] = useState<string>("")
+  const [quantity, setQuantity] = useState<number>(1)
   const [lastResult, setLastResult] = useState<DemoPurchaseResult | null>(null)
   const queryClient = useQueryClient()
 
@@ -63,6 +64,21 @@ export function DemoPanel() {
     queryFn: demo.history,
     enabled: open,
   })
+
+  const { data: products = [] } = useQuery({
+    queryKey: ["demo-products"],
+    queryFn: () => api.products(1, 100),
+    enabled: open && loggedInCustomer !== null,
+  })
+
+  const handleProductChange = (productId: string) => {
+    setSelectedProductId(productId)
+  }
+
+  // Derive active values reactively to avoid calling setState synchronously in an effect
+  const selectedProduct = products.find((p) => p.id === selectedProductId) || products[0]
+  const currentProductId = selectedProductId || products[0]?.id || ""
+  const currentPrice = selectedProduct?.price?.toFixed(2) || "0.00"
 
   const loginMutation = useMutation({
     mutationFn: () => auth.login(email, password),
@@ -84,11 +100,12 @@ export function DemoPanel() {
   const purchase = useMutation({
     mutationFn: () => {
       if (!loggedInCustomer || !token) throw new Error("Please log in first")
-      return demo.purchase(Number(amount), token)
+      if (!currentProductId) throw new Error("Please select a product")
+      return demo.purchase(currentProductId, quantity, token)
     },
     onSuccess: (result) => {
       setLastResult(result)
-      setAmount("")
+      setQuantity(1)
       queryClient.invalidateQueries({ queryKey: ["meta"] })
       queryClient.invalidateQueries({ queryKey: ["summary"] })
       queryClient.invalidateQueries({ queryKey: ["clusters"] })
@@ -129,8 +146,8 @@ export function DemoPanel() {
 
   const canBuy =
     loggedInCustomer !== null &&
-    amount.trim() !== "" &&
-    Number(amount) > 0 &&
+    currentProductId !== "" &&
+    quantity >= 1 &&
     !purchase.isPending
 
   return (
@@ -253,21 +270,57 @@ export function DemoPanel() {
                   </div>
                 </div>
 
-                {/* Purchase amount input */}
+                {/* Product selector dropdown */}
                 <div className="space-y-3">
                   <div>
                     <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
-                      Purchase amount (£)
+                      Select Product
                     </label>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder="e.g. 49.99"
-                      className="w-full border border-border bg-background px-3 py-2 font-mono text-sm tabular-nums text-foreground placeholder:text-muted-foreground/40 focus:border-foreground focus:outline-none"
-                    />
+                    {products.length === 0 ? (
+                      <div className="font-mono text-xs text-muted-foreground py-2">
+                        Loading products catalog…
+                      </div>
+                    ) : (
+                      <select
+                        value={currentProductId}
+                        onChange={(e) => handleProductChange(e.target.value)}
+                        className="w-full border border-border bg-background px-2.5 py-2 font-mono text-xs text-foreground focus:border-foreground focus:outline-none"
+                      >
+                        {products.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} (£{p.price.toFixed(2)})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Quantity and Price fields */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                        Quantity
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={quantity}
+                        onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-full border border-border bg-background px-3 py-2 font-mono text-sm tabular-nums text-foreground focus:border-foreground focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                        Unit Price (£)
+                      </label>
+                      <input
+                        type="text"
+                        value={currentPrice}
+                        disabled
+                        className="w-full border border-border bg-muted/20 px-3 py-2 font-mono text-sm tabular-nums text-muted-foreground opacity-70 cursor-not-allowed focus:outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
 

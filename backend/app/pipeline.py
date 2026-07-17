@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -107,4 +108,63 @@ def compute_churn(rfm_base: pd.DataFrame, threshold: int) -> pd.DataFrame:
     """Return rfm_base with Churn and Churn_Prob columns added for the given threshold."""
     model = train_churn_model(rfm_base, threshold)
     return predict_churn(rfm_base, model, threshold)
+
+
+def get_products_catalog(data_path: Path | None = None) -> list[dict]:
+    """Extract unique products from the raw transactions dataset and assign images/metadata."""
+    path = data_path or Path(os.environ.get("DATA_CSV", DEFAULT_DATA_PATH))
+    df = pd.read_csv(path, encoding="ISO-8859-1")
+    df = df.dropna(subset=["StockCode", "Description"])
+    df = df[df["UnitPrice"] > 0]
+    
+    # Clean stock code and description strings
+    df["StockCode"] = df["StockCode"].astype(str).str.strip()
+    df["Description"] = df["Description"].astype(str).str.strip()
+    
+    # Group by StockCode and aggregate Description (first) and UnitPrice (median)
+    prod_df = df.groupby("StockCode").agg({
+        "Description": "first",
+        "UnitPrice": "median"
+    }).reset_index()
+    
+    catalog = []
+    for _, row in prod_df.iterrows():
+        stock_code = row["StockCode"]
+        # Skip special codes that are not physical products (e.g., POST for postage, M for manual, etc.)
+        if len(stock_code) < 3 or stock_code.lower() in ("post", "dot", "m", "d", "c2", "bank charges", "pads"):
+            continue
+            
+        raw_name = row["Description"]
+        name = raw_name.title()
+        price = float(row["UnitPrice"])
+        
+        # Categorize products using keyword matching
+        name_lower = name.lower()
+        if any(w in name_lower for w in ["holder", "box", "bag", "wallet", "case", "backpack", "hanger", "organizer", "rack", "pocket"]):
+            category = "Accessories"
+        elif any(w in name_lower for w in ["light", "lamp", "clock", "battery", "led", "phone", "usb", "alarm"]):
+            category = "Electronics"
+        elif any(w in name_lower for w in ["chair", "table", "desk", "stool", "cabinet", "shelf", "cushion", "mirror", "frame"]):
+            category = "Furniture"
+        else:
+            category = "Lifestyle"
+            
+        # Generate a stable/deterministic rating between 4.0 and 5.0 based on StockCode hash
+        h = int(hashlib.md5(stock_code.encode()).hexdigest(), 16)
+        rating = round(4.0 + (h % 11) * 0.1, 1)
+        
+        description = f"This high-quality {name} (Item Code: {stock_code}) is a great addition to your collection. Features premium materials and classic design."
+        image_url = f"https://picsum.photos/seed/{stock_code}/400/400"
+        
+        catalog.append({
+            "id": stock_code,
+            "name": name,
+            "description": description,
+            "price": price,
+            "imageUrl": image_url,
+            "rating": rating,
+            "category": category
+        })
+        
+    return catalog
 
