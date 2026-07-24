@@ -29,6 +29,7 @@ class PipelineResult:
     pca: PCA
     min_date: pd.Timestamp
     max_date: pd.Timestamp
+    raw_df: pd.DataFrame
 
 
 def build(data_path: Path | None = None) -> PipelineResult:
@@ -36,19 +37,21 @@ def build(data_path: Path | None = None) -> PipelineResult:
     the elbow curve (WCSS per K) used to motivate the cluster count."""
     path = data_path or Path(os.environ.get("DATA_CSV", DEFAULT_DATA_PATH))
 
-    df = pd.read_csv(path, encoding="ISO-8859-1")
-    df = df.dropna(subset=["CustomerID"])
-    df = df[df["Quantity"] > 0]
+    raw_data = pd.read_csv(path, encoding="ISO-8859-1")
+    df = pd.DataFrame(raw_data.dropna(subset=["CustomerID"]))
+    df = pd.DataFrame(df[df["Quantity"] > 0])
     df["InvoiceDate"] = pd.to_datetime(df["InvoiceDate"])
     df["TotalPrice"] = df["Quantity"] * df["UnitPrice"]
 
-    snapshot_date = df["InvoiceDate"].max() + pd.Timedelta(days=1)
-    rfm = df.groupby("CustomerID").agg({
-        "InvoiceDate": lambda x: (snapshot_date - x.max()).days,
-        "InvoiceNo": "count",
+    snapshot_date = pd.Timestamp.now()
+    rfm = pd.DataFrame(df.groupby("CustomerID").agg({
+        "InvoiceDate": "max",
+        "InvoiceNo": "nunique",
         "TotalPrice": "sum",
-    })
-    rfm.columns = ["Recency", "Frequency", "Monetary"]
+    }))
+    recency = (snapshot_date - pd.to_datetime(rfm["InvoiceDate"])) / pd.Timedelta(days=1)
+    rfm["InvoiceDate"] = pd.Series(recency, index=rfm.index).astype(int)
+    rfm.columns = pd.Index(["Recency", "Frequency", "Monetary"])
 
     scaler = StandardScaler()
     rfm_scaled = scaler.fit_transform(np.log1p(rfm))
@@ -57,7 +60,7 @@ def build(data_path: Path | None = None) -> PipelineResult:
     for k in ELBOW_K_RANGE:
         model_k = KMeans(n_clusters=k, random_state=RANDOM_STATE, n_init=10)
         model_k.fit(rfm_scaled)
-        elbow.append((k, float(model_k.inertia_)))
+        elbow.append((k, model_k.inertia_))
 
     kmeans = KMeans(n_clusters=N_CLUSTERS, random_state=RANDOM_STATE, n_init=10)
     rfm["Cluster"] = kmeans.fit_predict(rfm_scaled)
@@ -66,21 +69,75 @@ def build(data_path: Path | None = None) -> PipelineResult:
     rfm[["PCA1", "PCA2"]] = pca.fit_transform(rfm_scaled)
 
     # Get email and password mapping from df and join
-    emails_passwords = df.groupby("CustomerID").agg({
+    emails_passwords = pd.DataFrame(df.groupby("CustomerID").agg({
         "Email": "first",
         "Password": "first",
-    })
+    }))
     rfm = rfm.join(emails_passwords)
 
     return PipelineResult(
-        rfm=rfm.reset_index(),
+        rfm=pd.DataFrame(rfm.reset_index()),
         elbow=elbow,
         scaler=scaler,
         kmeans=kmeans,
         pca=pca,
-        min_date=df["InvoiceDate"].min(),
-        max_date=df["InvoiceDate"].max(),
+        min_date=pd.Timestamp(df["InvoiceDate"].min()),
+        max_date=pd.Timestamp(df["InvoiceDate"].max()),
+        raw_df=df,
     )
+
+
+def compute_rfm_for_threshold(
+    df: pd.DataFrame,
+    threshold: int,
+    scaler: StandardScaler,
+    kmeans: KMeans,
+    pca: PCA,
+    model: LogisticRegression,
+) -> pd.DataFrame:
+    """Compute threshold-window specific RFM, Cluster, and Churn metrics."""
+    snapshot_date = pd.Timestamp.now()
+    
+    # Filter transactions within threshold window
+    inv_dates = pd.to_datetime(df["InvoiceDate"])
+    days_series = (snapshot_date - inv_dates) / pd.Timedelta(days=1)
+    window_mask = days_series <= threshold
+    df_window = pd.DataFrame(df[window_mask])
+    
+    # Group by CustomerID for window Frequency and Monetary
+    window_rfm = pd.DataFrame(df_window.groupby("CustomerID").agg({
+        "InvoiceNo": "nunique",
+        "TotalPrice": "sum",
+    }))
+    window_rfm.columns = pd.Index(["Frequency", "Monetary"])
+    
+    # Base recency across all time for each customer
+    base_rfm = pd.DataFrame(df.groupby("CustomerID").agg({
+        "InvoiceDate": "max",
+        "Email": "first",
+        "Password": "first",
+    }))
+    recency = (snapshot_date - pd.to_datetime(base_rfm["InvoiceDate"])) / pd.Timedelta(days=1)
+    base_rfm["Recency"] = pd.Series(recency, index=base_rfm.index).astype(int)
+    base_rfm = base_rfm[["Recency", "Email", "Password"]]
+    
+    rfm = base_rfm.join(window_rfm, how="left")
+    rfm["Frequency"] = rfm["Frequency"].fillna(0).astype(int)
+    rfm["Monetary"] = rfm["Monetary"].fillna(0.0).astype(float)
+    
+    # Predict Cluster
+    rfm_feats = rfm[["Recency", "Frequency", "Monetary"]]
+    rfm_scaled = scaler.transform(np.log1p(rfm_feats))
+    rfm["Cluster"] = kmeans.predict(rfm_scaled)
+    pca_coords = pca.transform(rfm_scaled)
+    rfm["PCA1"] = pca_coords[:, 0]
+    rfm["PCA2"] = pca_coords[:, 1]
+    
+    # Predict Churn and Churn_Prob
+    rfm["Churn"] = (rfm["Recency"] > threshold).astype(int)
+    rfm["Churn_Prob"] = model.predict_proba(rfm_feats)[:, 1]
+    
+    return pd.DataFrame(rfm.reset_index())
 
 
 def train_churn_model(rfm_base: pd.DataFrame, threshold: int) -> LogisticRegression:

@@ -73,7 +73,7 @@ def verify_token(token: str) -> dict | None:
     except Exception:
         return None
 
-from .pipeline import build, compute_churn, train_churn_model, predict_churn, get_products_catalog
+from .pipeline import build, compute_churn, train_churn_model, predict_churn, get_products_catalog, DEFAULT_DATA_PATH, compute_rfm_for_threshold
 from .database import init_db, populate_products_if_empty, get_db_connection
 
 CHURN_THRESHOLD_OPTIONS = {30, 60, 90, 120, 180}
@@ -124,6 +124,28 @@ class Customer(BaseModel):
 class CustomerList(BaseModel):
     total: int
     items: list[Customer]
+
+
+class TransactionItem(BaseModel):
+    invoice_no: str
+    invoice_date: str
+    quantity: int
+    total_value: float
+    item_count: int
+
+
+class CustomerTransactionsResponse(BaseModel):
+    customer_id: int
+    email: str | None = None
+    recency: int
+    frequency: int
+    monetary: float
+    cluster: int
+    total_transactions: int
+    total_quantity_all: int
+    total_value_all: float
+    transactions: list[TransactionItem]
+
 
 
 class PcaPoint(BaseModel):
@@ -275,6 +297,7 @@ async def lifespan(app: FastAPI):
     app.state.min_date = result.min_date
     app.state.max_date = result.max_date
     app.state.max_date_original = result.max_date
+    app.state.raw_df = result.raw_df
     demo_log: list[dict] = []
     app.state.demo_log = demo_log
 
@@ -295,13 +318,20 @@ async def lifespan(app: FastAPI):
     app.state.products_catalog = products_catalog
     app.state.products_lookup = {p["id"]: p for p in products_catalog}
 
-    # Train and store models for each threshold and baseline dataframes
+    # Train and store models for each threshold and threshold-window RFM dataframes
     app.state.churn_models = {}
     app.state.rfm_by_threshold = {}
     for threshold in CHURN_THRESHOLD_OPTIONS:
         model = train_churn_model(app.state.rfm, threshold)
         app.state.churn_models[threshold] = model
-        app.state.rfm_by_threshold[threshold] = predict_churn(app.state.rfm, model, threshold)
+        app.state.rfm_by_threshold[threshold] = compute_rfm_for_threshold(
+            app.state.raw_df,
+            threshold,
+            app.state.scaler,
+            app.state.kmeans,
+            app.state.pca,
+            model,
+        )
 
     # Cache response payloads
     refresh_all_caches(app)
@@ -399,6 +429,104 @@ def get_customers(
         for r in page.to_dict(orient="records")
     ]
     return CustomerList(total=total, items=items)
+
+
+@app.get("/customers/{customer_id}/transactions", response_model=CustomerTransactionsResponse)
+def get_customer_transactions(
+    customer_id: int,
+    request: Request,
+    threshold: Annotated[int, Query()] = DEFAULT_THRESHOLD,
+    ignore_threshold: Annotated[bool, Query()] = False,
+) -> CustomerTransactionsResponse:
+    rfm = _rfm_with_churn(request, threshold)
+    cust_df: pd.DataFrame = rfm[rfm["CustomerID"] == customer_id]  # type: ignore
+    if cust_df.empty:
+        raise HTTPException(status_code=404, detail=f"Customer #{customer_id} not found")
+    
+    cust_row: dict = cust_df.to_dict(orient="records")[0]
+    
+    now = pd.Timestamp.now()
+    
+    # Load transactions from data.csv
+    df = pd.read_csv(DEFAULT_DATA_PATH, encoding="ISO-8859-1")
+    df = df[df["CustomerID"] == customer_id]
+    df = df[df["Quantity"] > 0]
+    inv_dates = pd.to_datetime(df["InvoiceDate"])
+    df["InvoiceDate"] = inv_dates
+    if not ignore_threshold:
+        days_series = (now - inv_dates) / pd.Timedelta(days=1)
+        df["DaysAgo"] = days_series
+        df = df[df["DaysAgo"] <= threshold]
+    df["TotalPrice"] = df["Quantity"] * df["UnitPrice"]
+    
+    tx_list: list[TransactionItem] = []
+    
+    if not df.empty:
+        grouped = df.groupby("InvoiceNo").agg(
+            invoice_date=("InvoiceDate", "max"),
+            total_quantity=("Quantity", "sum"),
+            total_value=("TotalPrice", "sum"),
+            item_count=("InvoiceNo", "count")
+        ).reset_index()
+        
+        grouped = grouped.sort_values("invoice_date", ascending=False)
+        
+        for _, r in grouped.iterrows():
+            date_str = pd.Timestamp(r["invoice_date"]).strftime("%Y-%m-%d %H:%M:%S")
+            tx_list.append(
+                TransactionItem(
+                    invoice_no=str(r["InvoiceNo"]),
+                    invoice_date=date_str,
+                    quantity=int(r["total_quantity"]),
+                    total_value=round(float(r["total_value"]), 2),
+                    item_count=int(r["item_count"])
+                )
+            )
+            
+    # Also fetch simulated purchases from database if available (filtered by threshold window unless ignore_threshold is True)
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT invoice_no, quantity, price, timestamp FROM purchases WHERE customer_id = ?", (customer_id,))
+        db_purchases = cursor.fetchall()
+        conn.close()
+        for p in db_purchases:
+            ts = pd.to_datetime(p["timestamp"])
+            days_ago = (now - ts).total_seconds() / 86400.0
+            if ignore_threshold or days_ago <= threshold:
+                tx_list.append(
+                    TransactionItem(
+                        invoice_no=str(p["invoice_no"]),
+                        invoice_date=str(p["timestamp"]),
+                        quantity=int(p["quantity"]),
+                        total_value=round(float(p["price"] * p["quantity"]), 2),
+                        item_count=1
+                    )
+                )
+    except Exception:
+        pass
+        
+    tx_list.sort(key=lambda x: x.invoice_date, reverse=True)
+    
+    total_val_all = sum(t.total_value for t in tx_list)
+    total_qty_all = sum(t.quantity for t in tx_list)
+    
+    email_val = cust_row.get("Email")
+    email_str = None if pd.isna(email_val) else str(email_val)
+    
+    return CustomerTransactionsResponse(
+        customer_id=customer_id,
+        email=email_str,
+        recency=int(cust_row["Recency"]),
+        frequency=int(cust_row["Frequency"]),
+        monetary=round(float(cust_row["Monetary"]), 2),
+        cluster=int(cust_row["Cluster"]),
+        total_transactions=len(tx_list),
+        total_quantity_all=total_qty_all,
+        total_value_all=round(float(total_val_all), 2),
+        transactions=tx_list
+    )
+
 
 
 @app.get("/charts/pca-scatter", response_model=list[PcaPoint])
@@ -674,10 +802,27 @@ def demo_reset(request: Request) -> dict:
     request.app.state.max_date = request.app.state.max_date_original
     request.app.state.demo_log = []
 
-    # Recompute threshold dataframes from original RFM
+    # Clear simulated purchases from SQLite database
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM purchases")
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+    # Recompute threshold dataframes from raw_df
     for threshold in CHURN_THRESHOLD_OPTIONS:
         model = request.app.state.churn_models[threshold]
-        request.app.state.rfm_by_threshold[threshold] = predict_churn(request.app.state.rfm, model, threshold)
+        request.app.state.rfm_by_threshold[threshold] = compute_rfm_for_threshold(
+            request.app.state.raw_df,
+            threshold,
+            request.app.state.scaler,
+            request.app.state.kmeans,
+            request.app.state.pca,
+            model,
+        )
 
     # Refresh cached response payloads
     refresh_all_caches(request.app)

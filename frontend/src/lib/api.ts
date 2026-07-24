@@ -95,6 +95,27 @@ export type Product = {
   category: string
 }
 
+export type TransactionItem = {
+  invoice_no: string
+  invoice_date: string
+  quantity: number
+  total_value: number
+  item_count: number
+}
+
+export type CustomerTransactionsResponse = {
+  customer_id: number
+  email?: string
+  recency: number
+  frequency: number
+  monetary: number
+  cluster: number
+  total_transactions: number
+  total_quantity_all: number
+  total_value_all: number
+  transactions: TransactionItem[]
+}
+
 export const api = {
   meta: () => fetchJson<Meta>("/meta"),
   summary: (threshold: ChurnThreshold = DEFAULT_THRESHOLD) =>
@@ -112,6 +133,8 @@ export const api = {
     const qs = q.toString()
     return fetchJson<CustomerList>(`/customers${qs ? `?${qs}` : ""}`)
   },
+  customerTransactions: (customerId: number, threshold: ChurnThreshold = DEFAULT_THRESHOLD, ignoreThreshold = false) =>
+    fetchJson<CustomerTransactionsResponse>(`/customers/${customerId}/transactions?threshold=${threshold}${ignoreThreshold ? "&ignore_threshold=true" : ""}`),
   pcaScatter: () => fetchJson<PcaPoint[]>("/charts/pca-scatter"),
   churnDistribution: (bins = 20, threshold: ChurnThreshold = DEFAULT_THRESHOLD) =>
     fetchJson<ChurnBin[]>(`/charts/churn-distribution?bins=${bins}&threshold=${threshold}`),

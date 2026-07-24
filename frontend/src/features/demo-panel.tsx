@@ -110,6 +110,7 @@ export function DemoPanel() {
       queryClient.invalidateQueries({ queryKey: ["summary"] })
       queryClient.invalidateQueries({ queryKey: ["clusters"] })
       queryClient.invalidateQueries({ queryKey: ["customers"] })
+      queryClient.invalidateQueries({ queryKey: ["customer-transactions"] })
       queryClient.invalidateQueries({ queryKey: ["churn-distribution"] })
       queryClient.invalidateQueries({ queryKey: ["demo-history"] })
     },
@@ -134,6 +135,7 @@ export function DemoPanel() {
       queryClient.invalidateQueries({ queryKey: ["summary"] })
       queryClient.invalidateQueries({ queryKey: ["clusters"] })
       queryClient.invalidateQueries({ queryKey: ["customers"] })
+      queryClient.invalidateQueries({ queryKey: ["customer-transactions"] })
       queryClient.invalidateQueries({ queryKey: ["churn-distribution"] })
       queryClient.invalidateQueries({ queryKey: ["demo-history"] })
     },
