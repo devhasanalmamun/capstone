@@ -5,11 +5,12 @@ export function formatNumber(n: number, fractionDigits = 0) {
   }).format(n)
 }
 
-export function formatCurrency(n: number) {
+export function formatCurrency(n: number, fractionDigits = 2) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   }).format(n)
 }
 

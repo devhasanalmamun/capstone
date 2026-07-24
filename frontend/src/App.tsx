@@ -10,7 +10,14 @@ import { ElbowPlot } from "@/features/elbow-plot"
 import { Researchers } from "@/features/researchers"
 import { DemoPanel } from "@/features/demo-panel"
 import { SectionHeading } from "@/components/section-heading"
-import { api, DEFAULT_THRESHOLD, type ChurnThreshold } from "@/lib/api"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { api, CHURN_THRESHOLDS, DEFAULT_THRESHOLD, type ChurnThreshold } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 const REVEAL =
@@ -22,15 +29,43 @@ export default function App() {
 
   return (
     <div className="min-h-svh bg-background text-foreground">
-      <main className="mx-auto max-w-[1200px] px-6 pb-24 pt-12 md:px-10 md:pt-16">
+      <main className="mx-auto max-w-300 px-6 pb-24 pt-12 md:px-10 md:pt-16">
         <header className={cn(REVEAL, "mb-20 md:mb-24")}>
-          <div className="mb-10 flex items-center justify-between gap-4">
-            <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-muted-foreground">
-              The Segmentation Report
-            </p>
-            <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-muted-foreground">
-              Vol. I &middot; 11 May 2026
-            </p>
+          <div className="mb-10 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
+            <div className="flex items-center gap-3">
+              <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-muted-foreground">
+                The Segmentation Report
+              </p>
+              <span className="font-mono text-[11px] text-muted-foreground/40">&middot;</span>
+              <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-muted-foreground">
+                Vol. I &middot; 24 July 2026
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground whitespace-nowrap font-medium">
+                Threshold
+              </span>
+              <Select
+                value={String(threshold)}
+                onValueChange={(v) => setThreshold(Number(v) as ChurnThreshold)}
+              >
+                <SelectTrigger className="h-8 w-36 border-foreground/30 font-mono text-xs uppercase tracking-wider bg-background">
+                  <SelectValue placeholder="Threshold" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CHURN_THRESHOLDS.map((t) => (
+                    <SelectItem
+                      key={t}
+                      value={String(t)}
+                      className="font-mono text-xs uppercase tracking-wider"
+                    >
+                      {t} Days
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-y-8 md:grid-cols-12 md:gap-x-10">
@@ -97,7 +132,7 @@ export default function App() {
           />
           <div className="grid grid-cols-1 gap-px bg-border lg:grid-cols-2">
             <PcaScatter />
-            <ChurnHistogram threshold={threshold} onThresholdChange={setThreshold} />
+            <ChurnHistogram threshold={threshold} />
           </div>
         </section>
 
