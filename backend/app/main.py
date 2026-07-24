@@ -763,20 +763,29 @@ def demo_purchase(
         mask_t = df_t["CustomerID"] == customer_id
         if mask_t.any():
             idx_t = df_t.index[mask_t][0]
-            df_t.at[idx_t, "Monetary"] = rfm.at[idx, "Monetary"]
-            df_t.at[idx_t, "Frequency"] = rfm.at[idx, "Frequency"]
-            df_t.at[idx_t, "Recency"] = rfm.at[idx, "Recency"]
-            df_t.at[idx_t, "Cluster"] = rfm.at[idx, "Cluster"]
-            df_t.at[idx_t, "PCA1"] = rfm.at[idx, "PCA1"]
-            df_t.at[idx_t, "PCA2"] = rfm.at[idx, "PCA2"]
+            new_t_freq = int(df_t.at[idx_t, "Frequency"]) + 1
+            new_t_monetary = float(df_t.at[idx_t, "Monetary"]) + total_amount
+            new_t_recency = 0
+            
+            df_t.at[idx_t, "Frequency"] = new_t_freq
+            df_t.at[idx_t, "Monetary"] = new_t_monetary
+            df_t.at[idx_t, "Recency"] = new_t_recency
+            
+            row_scaled_t = request.app.state.scaler.transform(
+                np.log1p(np.array([[new_t_recency, new_t_freq, new_t_monetary]], dtype=float))
+            )
+            df_t.at[idx_t, "Cluster"] = int(request.app.state.kmeans.predict(row_scaled_t)[0])
+            pca_coords_t = request.app.state.pca.transform(row_scaled_t)[0]
+            df_t.at[idx_t, "PCA1"] = float(pca_coords_t[0])
+            df_t.at[idx_t, "PCA2"] = float(pca_coords_t[1])
             
             model = request.app.state.churn_models[t]
-            row_feats = pd.DataFrame(
-                [[0, rfm.at[idx, "Frequency"], rfm.at[idx, "Monetary"]]],
+            row_feats_t = pd.DataFrame(
+                [[new_t_recency, new_t_freq, new_t_monetary]],
                 columns=["Recency", "Frequency", "Monetary"]
             )
             df_t.at[idx_t, "Churn"] = 0
-            df_t.at[idx_t, "Churn_Prob"] = float(model.predict_proba(row_feats)[0, 1])
+            df_t.at[idx_t, "Churn_Prob"] = float(model.predict_proba(row_feats_t)[0, 1])
 
     # Refresh cached response payloads
     refresh_all_caches(request.app)
