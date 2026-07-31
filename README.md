@@ -57,9 +57,25 @@ Run cells top-to-bottom — the pipeline is linear and each step depends on the 
 
 ### Backend
 
-From the `backend/` directory:
+**Option A — From the project root directory (`F:\capstone`):**
 
-```bash
+```powershell
+# Windows PowerShell:
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+
+# macOS / Linux:
+./.venv/bin/python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+**Option B — From the `backend/` directory:**
+
+```powershell
+# Windows PowerShell:
+cd backend
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+
+# macOS / Linux:
+cd backend
 ../.venv/bin/python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -67,6 +83,7 @@ The pipeline runs once on startup (a few seconds) and loads the resulting `rfm` 
 
 Endpoints:
 
+- `GET /health` — health check endpoint for uptime monitoring (returns `{"status": "ok"}`)
 - `GET /summary` — totals (customers, revenue, churn rate, cluster count)
 - `GET /clusters` — per-cluster stats (size, mean RFM, churn rate)
 - `GET /customers?cluster=&limit=&offset=` — paginated customer list
@@ -89,6 +106,18 @@ Dashboard at <http://localhost:5173>. CORS is open to that origin.
 4. **Cluster selection** — elbow (WCSS) + silhouette across K=2..9; lands on K=4.
 5. **K-Means** — clusters fit on scaled RFM, visualized in 2D via PCA.
 6. **Churn model** — binary label `Churn = (Recency > 90 days)`, fit with logistic regression on raw RFM.
+
+## Deployment & Preventing Render Cold Starts
+
+Render's free tier puts web services to sleep after **15 minutes** of inactivity, which causes a 30–50 second cold start delay on the next HTTP hit while the FastAPI pipeline loads.
+
+To keep your free Render instance continuously awake:
+1. Create a free monitor on **[UptimeRobot](https://uptimerobot.com/)** or **[cron-job.org](https://cron-job.org/)**.
+2. Add an HTTP GET monitor targeting your health check endpoint:
+   `https://<your-app-name>.onrender.com/health`
+3. Set the monitoring interval to **every 10 to 12 minutes**.
+
+> **Note on Free Instance Hours:** Render limits free workspaces to 750 free instance hours per month. Running a single web service 24/7 uses ~744 hours/month (31 days × 24 hours), fitting within the free allocation.
 
 ## Caveats
 
