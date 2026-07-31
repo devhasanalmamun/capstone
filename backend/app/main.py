@@ -371,6 +371,11 @@ class Meta(BaseModel):
     total_rows: int
 
 
+@app.get("/health")
+def get_health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 @app.get("/meta", response_model=Meta)
 def get_meta(request: Request) -> Meta:
     return Meta(
