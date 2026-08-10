@@ -66,17 +66,20 @@ The codebase is fully implemented, verified, and functioning correctly end-to-en
 
 ---
 
-## Question 3: In my project, is the transaction log sitting unused?
+## Question 3: In my project, is the transaction log sitting unused and unanalyzed?
 
-### Key Distinction: **In Traditional Retail, YES — but in YOUR Project, NO! Your project is the solution.**
+### Direct Answer: **NO! In your project, it is 100% analyzed and actively used!**
 
-| Perspective | Transaction Log Status | Explanation |
+| Timeline / System State | Transaction Log Status | Explanation |
 | :--- | :---: | :--- |
-| **Traditional E-Commerce Retailer (The Problem)** | **Sitting Unused ❌** | Raw purchase receipts (~541k rows) were captured and stored only for accounting and tax records, resulting in blanket email blasts to all 4,339 customers regardless of recency or spending behavior. |
-| **Your Capstone Machine Learning Project (The Solution)** | **Actively Unlocked & Modeled ✅** | Your codebase processes those raw receipts via [`backend/app/pipeline.py`](file:///f:/capstone/backend/app/pipeline.py#L40-L65), converting raw transaction logs into RFM vectors, $K=4$ customer clusters (**C2, C1, C0, C3**), and churn probabilities served live on a React Dashboard & Flutter Mobile App. |
+| **Original Retailer (Before Your Project)** | **Unused & Unanalyzed ❌** | The raw dataset (`data.csv`) was stored only as flat purchase receipts for basic accounting, resulting in unsegmented blanket emails sent to all 4,339 customers. |
+| **Your Machine Learning System (What You Built)** | **Actively Analyzed & Modeled ✅** | Your Python backend ([`backend/app/pipeline.py`](file:///f:/capstone/backend/app/pipeline.py#L40-L65)) reads every single transaction, calculates RFM behavioral metrics, partitions customers into 4 clusters (**C2, C1, C0, C3**), and predicts churn probabilities served live to your Web Dashboard and Mobile App. |
 
 ---
 
-### Summary Presentation Script for Supervisor Defense:
+### 10-Second Executive Summary for Presentations / Supervisor Q&A:
 
-> *"The slide illustrates the starting problem faced by traditional e-commerce retailers—they log thousands of transaction receipts, but let them sit unused in database archives, leading to wasteful blanket marketing. **Our project is the solution**: we extract those raw, unused transaction logs, apply RFM feature engineering and Machine Learning, and transform static audit logs into automated customer segmentation and predictive churn intelligence."*
+- **The Problem on the Slide**: Traditional retailers let transaction logs sit unused in database archives, causing wasteful blanket email marketing.
+- **Your Project's Solution**: Your project **rescues** that raw transaction log, applies machine learning feature engineering, and transforms static receipt logs into automated customer segmentation and predictive churn intelligence.
+
+> *"The presentation slide describes the starting problem faced by standard retailers. Our capstone project is the solution that fixes it by actively analyzing every transaction log row through our ML pipeline."*
