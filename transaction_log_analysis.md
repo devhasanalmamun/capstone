@@ -1,6 +1,6 @@
 # Transaction Log & Behavioral Segmentation Analysis
 
-This document provides a comprehensive technical and business breakdown explaining the presentation statement: **"The data to fix this already exists — it is sitting unused in the transaction log."**, along with codebase verification.
+This document provides a comprehensive technical and business breakdown explaining the presentation statement: **"The data to fix this already exists — it is sitting unused in the transaction log."**, along with codebase verification and project context.
 
 ---
 
@@ -66,6 +66,17 @@ The codebase is fully implemented, verified, and functioning correctly end-to-en
 
 ---
 
-### Summary Script for Presentation / Supervisor Review:
+## Question 3: In my project, is the transaction log sitting unused?
 
-> *"E-commerce retailers automatically capture customer purchase timestamps, order counts, and transaction values in their raw database logs. However, these logs typically sit unused for marketing purposes. By transforming raw receipt line items into Recency, Frequency, and Monetary (RFM) behavioral signals, our system turns static audit logs into intelligent customer segments (C2 Champions, C1 At-Risk, C0 New, C3 Hibernating), eliminating wasteful blanket marketing."*
+### Key Distinction: **In Traditional Retail, YES — but in YOUR Project, NO! Your project is the solution.**
+
+| Perspective | Transaction Log Status | Explanation |
+| :--- | :---: | :--- |
+| **Traditional E-Commerce Retailer (The Problem)** | **Sitting Unused ❌** | Raw purchase receipts (~541k rows) were captured and stored only for accounting and tax records, resulting in blanket email blasts to all 4,339 customers regardless of recency or spending behavior. |
+| **Your Capstone Machine Learning Project (The Solution)** | **Actively Unlocked & Modeled ✅** | Your codebase processes those raw receipts via [`backend/app/pipeline.py`](file:///f:/capstone/backend/app/pipeline.py#L40-L65), converting raw transaction logs into RFM vectors, $K=4$ customer clusters (**C2, C1, C0, C3**), and churn probabilities served live on a React Dashboard & Flutter Mobile App. |
+
+---
+
+### Summary Presentation Script for Supervisor Defense:
+
+> *"The slide illustrates the starting problem faced by traditional e-commerce retailers—they log thousands of transaction receipts, but let them sit unused in database archives, leading to wasteful blanket marketing. **Our project is the solution**: we extract those raw, unused transaction logs, apply RFM feature engineering and Machine Learning, and transform static audit logs into automated customer segmentation and predictive churn intelligence."*
