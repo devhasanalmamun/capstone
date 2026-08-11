@@ -1,7 +1,7 @@
 const RESEARCHERS = [
   { name: "S.M. Tahmidul Islam", roll: "21223203044" },
   { name: "Hasan Al Mamun", roll: "21223203037" },
-  { name: "Mahbubul Alam Marin", roll: "2122303026" },
+  { name: "Mahbubul Alam Marin", roll: "21223203026" },
   { name: "Mahbubur Raman Mahfuj", roll: "21223203036" },
   { name: "Aminul Islam", roll: "21223203025" },
 ]
