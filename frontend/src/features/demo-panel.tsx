@@ -290,7 +290,7 @@ export function DemoPanel() {
                       >
                         {products.map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.name} (£{p.price.toFixed(2)})
+                            {p.name} (€{p.price.toFixed(2)})
                           </option>
                         ))}
                       </select>
@@ -314,7 +314,7 @@ export function DemoPanel() {
                     </div>
                     <div>
                       <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
-                        Unit Price (£)
+                        Unit Price (€)
                       </label>
                       <input
                         type="text"

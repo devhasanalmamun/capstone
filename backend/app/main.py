@@ -452,17 +452,12 @@ def get_customer_transactions(
     
     now = pd.Timestamp.now()
     
-    # Load transactions from data.csv
-    df = pd.read_csv(DEFAULT_DATA_PATH, encoding="ISO-8859-1")
-    df = df[df["CustomerID"] == customer_id]
-    df = df[df["Quantity"] > 0]
-    inv_dates = pd.to_datetime(df["InvoiceDate"])
-    df["InvoiceDate"] = inv_dates
-    if not ignore_threshold:
-        days_series = (now - inv_dates) / pd.Timedelta(days=1)
-        df["DaysAgo"] = days_series
-        df = df[df["DaysAgo"] <= threshold]
-    df["TotalPrice"] = df["Quantity"] * df["UnitPrice"]
+    # Use pre-loaded in-memory raw_df and filter by CustomerID first for instant response times
+    raw_df: pd.DataFrame = request.app.state.raw_df
+    df = raw_df[raw_df["CustomerID"] == customer_id]
+    if not df.empty and not ignore_threshold:
+        days_series = (now - df["InvoiceDate"]) / pd.Timedelta(days=1)
+        df = df[days_series <= threshold]
     
     tx_list: list[TransactionItem] = []
     

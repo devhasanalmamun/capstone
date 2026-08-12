@@ -8,7 +8,7 @@ export function formatNumber(n: number, fractionDigits = 0) {
 export function formatCurrency(n: number, fractionDigits = 2) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: "EUR",
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
   }).format(n)

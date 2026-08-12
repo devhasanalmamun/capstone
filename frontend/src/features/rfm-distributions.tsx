@@ -36,7 +36,7 @@ const METRICS: Metric[] = [
   {
     key: "monetary",
     label: "Monetary",
-    unit: "USD",
+    unit: "EUR",
     colorVar: "var(--chart-3)",
     format: (v) => formatCurrency(v),
   },
