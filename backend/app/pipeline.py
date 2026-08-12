@@ -182,7 +182,26 @@ def get_product_image_url(product_id: str, product_name: str) -> str:
 
 
 def get_products_catalog(data_path: Path | None = None) -> list[dict]:
-    """Extract unique products from the raw transactions dataset and assign images/metadata."""
+    """Extract unique products from the raw transactions dataset and assign images/metadata.
+    If products.csv exists, load directly from products.csv."""
+    csv_file = Path(DEFAULT_DATA_PATH).parent / "products.csv"
+    if csv_file.exists():
+        import csv
+        catalog = []
+        with open(csv_file, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for r in reader:
+                catalog.append({
+                    "id": r["id"],
+                    "name": r["name"],
+                    "description": r["description"],
+                    "price": float(r["price"]),
+                    "imageUrl": r["imageUrl"],
+                    "rating": float(r["rating"]),
+                    "category": r["category"],
+                })
+        if catalog:
+            return catalog
     path = data_path or Path(os.environ.get("DATA_CSV", DEFAULT_DATA_PATH))
     df = pd.read_csv(path, encoding="ISO-8859-1")
     df = df.dropna(subset=["StockCode", "Description"])
