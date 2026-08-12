@@ -167,118 +167,18 @@ def compute_churn(rfm_base: pd.DataFrame, threshold: int) -> pd.DataFrame:
     return predict_churn(rfm_base, model, threshold)
 
 
-PRODUCT_IMAGE_MAP = {
-    "10002": "https://images.unsplash.com/photo-1521295121783-8a321d551ad2?auto=format&fit=crop&w=400&q=80",  # Inflatable Political Globe
-    "10080": "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=400&q=80",  # Groovy Cactus Inflatable
-    "10120": "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=400&q=80",  # Doggy Rubber
-    "10123C": "https://images.unsplash.com/photo-1582738411706-bfc8e691d1c2?auto=format&fit=crop&w=400&q=80", # Hearts Wrapping Tape
-    "10124A": "https://images.unsplash.com/photo-1516962215378-7fa2e137ae93?auto=format&fit=crop&w=400&q=80", # Spots On Red Bookcover Tape
-    "10124G": "https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&w=400&q=80", # Army Camo Bookcover Tape
-    "10125": "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=400&q=80",  # Mini Funky Design Tapes
-    "10133": "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=400&q=80",  # Colouring Pencils Brown Tube
-    "10135": "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=400&q=80",  # Colouring Pencils Brown Tube
-    "11001": "https://images.unsplash.com/photo-1585336261026-875a60a1c92f?auto=format&fit=crop&w=400&q=80",  # Asstd Design Racing Car Pen
-    "15030": "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=400&q=80",  # Fan Black Frame
-    "15034": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=400&q=80",  # Paper Pocket Traveling Fan
-    "15036": "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=400&q=80",  # Assorted Colours Silk Fan
-    "15039": "https://images.unsplash.com/photo-1606760227091-3dd870d97f1d?auto=format&fit=crop&w=400&q=80",  # Sandalwood Fan
-    "15044A": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=400&q=80", # Pink Paper Parasol
-    "15044B": "https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&w=400&q=80", # Blue Paper Parasol
-    "15044C": "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=400&q=80", # Purple Paper Parasol
-    "15044D": "https://images.unsplash.com/photo-1508873696983-2df515122519?auto=format&fit=crop&w=400&q=80", # Red Paper Parasol
-    "15056BL": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=400&q=80",# Edwardian Parasol Black
-    "15056N": "https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=400&q=80", # Edwardian Parasol Natural
-    "15056P": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=400&q=80", # Edwardian Parasol Pink
-    "15056bl": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=400&q=80",# Edwardian Parasol Black
-    "15056n": "https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=400&q=80", # Edwardian Parasol Natural
-    "15056p": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=400&q=80", # Edwardian Parasol Pink
-    "15058A": "https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&w=400&q=80", # Blue Polkadot Garden Parasol
-    "15058B": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=400&q=80", # Pink Polkadot Garden Parasol
-    "15058C": "https://images.unsplash.com/photo-1508873696983-2df515122519?auto=format&fit=crop&w=400&q=80", # Ice Cream Design Garden Parasol
-    "15060B": "https://images.unsplash.com/photo-1519869325930-281384150729?auto=format&fit=crop&w=400&q=80", # Fairy Cake Design Umbrella
-    "15060b": "https://images.unsplash.com/photo-1519869325930-281384150729?auto=format&fit=crop&w=400&q=80", # Fairy Cake Design Umbrella
-    "16008": "https://images.unsplash.com/photo-1503792501406-2c40da09e1e2?auto=format&fit=crop&w=400&q=80",  # Small Folding Scissor
-    "16010": "https://images.unsplash.com/photo-1588854337236-6889d631faa8?auto=format&fit=crop&w=400&q=80",  # Folding Camping Scissor
-    "16011": "https://images.unsplash.com/photo-1572375992501-4b0892d50c69?auto=format&fit=crop&w=400&q=80",  # Animal Stickers
-    "16012": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80",  # Food/Drink Sponge Stickers
-    "16014": "https://images.unsplash.com/photo-1589254065878-42c9da997008?auto=format&fit=crop&w=400&q=80",  # Small Chinese Style Scissor
-    "16015": "https://images.unsplash.com/photo-1503792501406-2c40da09e1e2?auto=format&fit=crop&w=400&q=80",  # Medium Chinese Style Scissor
-    "16016": "https://images.unsplash.com/photo-1589254065878-42c9da997008?auto=format&fit=crop&w=400&q=80",  # Large Chinese Style Scissor
-    "16020C": "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=400&q=80", # Clear Stationery Box Set
-    "16033": "https://images.unsplash.com/photo-1585336261026-875a60a1c92f?auto=format&fit=crop&w=400&q=80",  # Mini Highlighter Pens
-    "16043": "https://images.unsplash.com/photo-1588854337236-6889d631faa8?auto=format&fit=crop&w=400&q=80",  # Pop Art Push Down Rubber
-    "16045": "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=400&q=80",  # Popart Wooden Pencils Asst
-    "16046": "https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=400&q=80",  # Teatime Pen Case & Pens
-    "16048": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80",  # Teatime Round Pencil Sharpener
-    "16049": "https://images.unsplash.com/photo-1585336261026-875a60a1c92f?auto=format&fit=crop&w=400&q=80",  # Teatime Gel Pens Asst
-    "16052": "https://images.unsplash.com/photo-1588854337236-6889d631faa8?auto=format&fit=crop&w=400&q=80",  # Teatime Push Down Rubber
-    "16054": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80",  # Popart Rect Pencil Sharpener Asst
-    "16151A": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=400&q=80", # Flowers Handbag Blue And Orange
-    "16156L": "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=400&q=80", # Wrap, Carousel
-    "16156S": "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=400&q=80", # Wrap Pink Fairy Cakes
-    "16161G": "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=400&q=80", # Wrap Bad Hair Day
-    "16161M": "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=400&q=80", # Wrap Pink Flock
-    "16161P": "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=400&q=80", # Wrap English Rose
-    "16161U": "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=400&q=80", # Wrap Suki And Friends
-    "16162L": "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=400&q=80", # The King Gift Bag
-    "16162M": "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=400&q=80", # The King Gift Bag 25X24X12Cm
-    "16168M": "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=400&q=80", # Funky Monkey Gift Bag Medium
-    "16169E": "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=400&q=80", # Wrap 50'S Christmas
-    "16169K": "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=400&q=80", # Wrap Folk Art
-    "16169M": "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=400&q=80", # Wrap Daisy Carpet
-    "16169N": "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=400&q=80", # Wrap Blue Russian Folkart
-    "16169P": "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=400&q=80", # Wrap Green Russian Folkart
-    "16202A": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80", # Pastel Pink Photo Album
-    "16202B": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80", # Pastel Blue Photo Album
-    "16202E": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80", # Black Photo Album
-    "16206B": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=400&q=80", # Red Purse With Pink Heart
-    "16207A": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=400&q=80", # Pink Strawberry Handbag
-    "16207B": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=400&q=80", # Pink Heart Red Handbag
-    "16216":  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80", # Letter Shape Pencil Sharpener
-    "16218":  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80", # Cartoon Pencil Sharpeners
-    "16219":  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80", # House Shape Pencil Sharpener
-}
+import re
 
-KEYWORD_IMAGE_PATTERNS = [
-    (["globe"], "https://images.unsplash.com/photo-1521295121783-8a321d551ad2?auto=format&fit=crop&w=400&q=80"),
-    (["cactus"], "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=400&q=80"),
-    (["rubber", "eraser"], "https://images.unsplash.com/photo-1588854337236-6889d631faa8?auto=format&fit=crop&w=400&q=80"),
-    (["tape"], "https://images.unsplash.com/photo-1582738411706-bfc8e691d1c2?auto=format&fit=crop&w=400&q=80"),
-    (["pencil"], "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=400&q=80"),
-    (["pen"], "https://images.unsplash.com/photo-1585336261026-875a60a1c92f?auto=format&fit=crop&w=400&q=80"),
-    (["fan"], "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=400&q=80"),
-    (["parasol", "umbrella"], "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=400&q=80"),
-    (["scissor"], "https://images.unsplash.com/photo-1503792501406-2c40da09e1e2?auto=format&fit=crop&w=400&q=80"),
-    (["sticker"], "https://images.unsplash.com/photo-1572375992501-4b0892d50c69?auto=format&fit=crop&w=400&q=80"),
-    (["highlighter"], "https://images.unsplash.com/photo-1585336261026-875a60a1c92f?auto=format&fit=crop&w=400&q=80"),
-    (["sharpener"], "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80"),
-    (["handbag", "bag", "purse", "wallet"], "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=400&q=80"),
-    (["wrap", "wrapping"], "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?auto=format&fit=crop&w=400&q=80"),
-    (["album", "notebook", "book", "journal"], "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80"),
-    (["mug", "cup", "teacup", "coffee"], "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=400&q=80"),
-    (["cushion", "pillow"], "https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?auto=format&fit=crop&w=400&q=80"),
-    (["candle", "votive", "t-light", "holder", "candlestick"], "https://images.unsplash.com/photo-1603006905003-be475563bc59?auto=format&fit=crop&w=400&q=80"),
-    (["lantern", "light", "lamp"], "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=400&q=80"),
-    (["clock"], "https://images.unsplash.com/photo-1563861826100-9cb868fdbe1c?auto=format&fit=crop&w=400&q=80"),
-    (["mirror"], "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=400&q=80"),
-    (["box", "tin", "chest", "case"], "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=400&q=80"),
-    (["card", "greeting"], "https://images.unsplash.com/photo-1531346878377-a5be20888e57?auto=format&fit=crop&w=400&q=80"),
-    (["toy", "game", "doll", "bear"], "https://images.unsplash.com/photo-1558060370-d644479cb6f7?auto=format&fit=crop&w=400&q=80"),
-    (["kitchen", "apron", "towel", "bowl", "plate", "dish"], "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=400&q=80"),
-]
-
-DEFAULT_IMAGE = "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=400&q=80"
+def slugify_product_name(name: str) -> str:
+    s = name.lower()
+    s = re.sub(r'[^a-z0-9]+', '-', s).strip('-')
+    return s
 
 def get_product_image_url(product_id: str, product_name: str) -> str:
-    if product_id in PRODUCT_IMAGE_MAP:
-        return PRODUCT_IMAGE_MAP[product_id]
-    
-    name_lower = product_name.lower()
-    for keywords, url in KEYWORD_IMAGE_PATTERNS:
-        if any(kw in name_lower for kw in keywords):
-            return url
-            
-    return DEFAULT_IMAGE
+    slug = slugify_product_name(product_name)
+    if not slug:
+        slug = product_id.lower()
+    return f"https://picsum.photos/seed/{slug}/400/400"
 
 
 def get_products_catalog(data_path: Path | None = None) -> list[dict]:
