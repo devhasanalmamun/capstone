@@ -371,7 +371,7 @@ class Meta(BaseModel):
     total_rows: int
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def get_health() -> dict[str, str]:
     return {"status": "ok"}
 

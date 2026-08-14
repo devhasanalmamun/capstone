@@ -83,7 +83,7 @@ The pipeline runs once on startup (a few seconds) and loads the resulting `rfm` 
 
 Endpoints:
 
-- `GET /health` — health check endpoint for uptime monitoring (returns `{"status": "ok"}`)
+- `GET / HEAD /health` — health check endpoint for uptime monitoring (returns `{"status": "ok"}`)
 - `GET /summary` — totals (customers, revenue, churn rate, cluster count)
 - `GET /clusters` — per-cluster stats (size, mean RFM, churn rate)
 - `GET /customers?cluster=&limit=&offset=` — paginated customer list
@@ -113,7 +113,7 @@ Render's free tier puts web services to sleep after **15 minutes** of inactivity
 
 To keep your free Render instance continuously awake:
 1. Create a free monitor on **[UptimeRobot](https://uptimerobot.com/)** or **[cron-job.org](https://cron-job.org/)**.
-2. Add an HTTP GET monitor targeting your health check endpoint:
+2. Add an HTTP HEAD (or GET) monitor targeting your health check endpoint:
    `https://<your-app-name>.onrender.com/health`
 3. Set the monitoring interval to **every 10 to 12 minutes**.
 
