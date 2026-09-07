@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -135,15 +136,35 @@ def compute_rfm_for_threshold(
     
     # Predict Churn and Churn_Prob
     rfm["Churn"] = (rfm["Recency"] > threshold).astype(int)
-    rfm["Churn_Prob"] = model.predict_proba(rfm_feats)[:, 1]
+    rfm["Churn_Prob"] = churn_proba(model, rfm_feats)
     
     return pd.DataFrame(rfm.reset_index())
 
 
-def train_churn_model(rfm_base: pd.DataFrame, threshold: int) -> LogisticRegression:
-    """Train and return a LogisticRegression model for the given churn threshold."""
+def churn_proba(model, features: pd.DataFrame) -> np.ndarray:
+    """P(churn) for each row, tolerating a model fitted on a single class."""
+    proba = model.predict_proba(features)
+    classes = list(model.classes_)
+    if 1 in classes:
+        return proba[:, classes.index(1)]
+    return np.zeros(len(features))
+
+
+def train_churn_model(rfm_base: pd.DataFrame, threshold: int):
+    """Train and return a churn classifier for the given churn threshold.
+
+    When the dataset has gone stale relative to today, a short threshold can put
+    every customer on the same side of the cut (e.g. the last transaction is
+    45 days old, so nobody clears a 30-day threshold). LogisticRegression
+    refuses to fit on one class, so fall back to a constant classifier that
+    predicts that class -- which is the correct answer in that degenerate case.
+    """
     churn = (rfm_base["Recency"] > threshold).astype(int)
     features = rfm_base[["Recency", "Frequency", "Monetary"]]
+    if churn.nunique() < 2:
+        model = DummyClassifier(strategy="prior")
+        model.fit(features, churn)
+        return model
     x_train, _, y_train, _ = train_test_split(
         features, churn, test_size=0.2, random_state=RANDOM_STATE, stratify=churn,
     )
@@ -157,7 +178,7 @@ def predict_churn(rfm_base: pd.DataFrame, model: LogisticRegression, threshold: 
     rfm = rfm_base.copy()
     rfm["Churn"] = (rfm["Recency"] > threshold).astype(int)
     features = rfm[["Recency", "Frequency", "Monetary"]]
-    rfm["Churn_Prob"] = model.predict_proba(features)[:, 1]
+    rfm["Churn_Prob"] = churn_proba(model, features)
     return rfm
 
 

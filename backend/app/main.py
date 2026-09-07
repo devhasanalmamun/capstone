@@ -73,7 +73,7 @@ def verify_token(token: str) -> dict | None:
     except Exception:
         return None
 
-from .pipeline import build, compute_churn, train_churn_model, predict_churn, get_products_catalog, DEFAULT_DATA_PATH, compute_rfm_for_threshold
+from .pipeline import build, compute_churn, train_churn_model, predict_churn, churn_proba, get_products_catalog, DEFAULT_DATA_PATH, compute_rfm_for_threshold
 from .database import init_db, populate_products_if_empty, get_db_connection
 
 CHURN_THRESHOLD_OPTIONS = {30, 60, 90, 120, 180}
@@ -785,7 +785,7 @@ def demo_purchase(
                 columns=["Recency", "Frequency", "Monetary"]
             )
             df_t.at[idx_t, "Churn"] = 0
-            df_t.at[idx_t, "Churn_Prob"] = float(model.predict_proba(row_feats_t)[0, 1])
+            df_t.at[idx_t, "Churn_Prob"] = float(churn_proba(model, row_feats_t)[0])
 
     # Refresh cached response payloads
     refresh_all_caches(request.app)
