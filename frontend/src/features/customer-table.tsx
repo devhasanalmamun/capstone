@@ -155,13 +155,13 @@ export function CustomerTable({ threshold }: { threshold: ChurnThreshold }) {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-4">
-        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground mr-auto">
+        <p className="font-mono text-[13px] uppercase tracking-[0.22em] text-muted-foreground mr-auto">
           {data ? `${formatNumber(data.total)} matching records` : " "}
         </p>
 
         {/* Churn probability range slider */}
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground whitespace-nowrap">
+          <span className="font-mono text-[12px] uppercase tracking-[0.18em] text-muted-foreground whitespace-nowrap">
             Churn p
           </span>
           <Slider.Root
@@ -181,7 +181,7 @@ export function CustomerTable({ threshold }: { threshold: ChurnThreshold }) {
             <Slider.Thumb className="block h-3 w-3 border border-foreground bg-background transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground" />
             <Slider.Thumb className="block h-3 w-3 border border-foreground bg-background transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground" />
           </Slider.Root>
-          <span className="w-24 font-mono text-[10px] tabular-nums text-muted-foreground">
+          <span className="w-24 font-mono text-[12px] tabular-nums text-muted-foreground">
             {Math.round(churnRange[0] * 100)}% – {Math.round(churnRange[1] * 100)}%
           </span>
         </div>
@@ -235,7 +235,7 @@ export function CustomerTable({ threshold }: { threshold: ChurnThreshold }) {
                     {headerGroup.headers.map((header) => (
                       <TableHead
                         key={header.id}
-                        className="h-9 px-4 font-mono text-[10px] font-normal uppercase tracking-[0.18em] text-muted-foreground"
+                        className="h-9 px-4 font-mono text-[12px] font-normal uppercase tracking-[0.18em] text-muted-foreground"
                       >
                         {header.isPlaceholder
                           ? null
@@ -279,7 +279,7 @@ export function CustomerTable({ threshold }: { threshold: ChurnThreshold }) {
               </TableBody>
             </Table>
           </div>
-          <div className="mt-4 flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          <div className="mt-4 flex items-center justify-between font-mono text-[13px] uppercase tracking-[0.18em] text-muted-foreground">
             <span>
               Page {pageIndex + 1} / {pageCount}
             </span>
@@ -346,7 +346,7 @@ function CustomerTransactionsModal({
                 </Dialog.Title>
                 {data?.cluster !== undefined && (
                   <span
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 font-mono text-[10px] uppercase font-medium border"
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 font-mono text-[12px] uppercase font-medium border"
                     style={{
                       borderColor: SWATCH_VARS[data.cluster % SWATCH_VARS.length],
                       color: SWATCH_VARS[data.cluster % SWATCH_VARS.length],
@@ -375,7 +375,7 @@ function CustomerTransactionsModal({
 
           {/* Threshold Filter Toggle Control */}
           <div className="my-3 flex items-center justify-between border-b border-border pb-3">
-            <label className="flex items-center gap-2 cursor-pointer select-none font-mono text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
+            <label className="flex items-center gap-2 cursor-pointer select-none font-mono text-[13px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
               <input
                 type="checkbox"
                 checked={ignoreThreshold}
@@ -385,7 +385,7 @@ function CustomerTransactionsModal({
               <span>Show All Transactions (Ignore {threshold}-Day Threshold)</span>
             </label>
             {ignoreThreshold && (
-              <span className="font-mono text-[10px] uppercase tracking-wider text-primary font-medium bg-primary/10 px-2 py-0.5 border border-primary/20">
+              <span className="font-mono text-[12px] uppercase tracking-wider text-primary font-medium bg-primary/10 px-2 py-0.5 border border-primary/20">
                 All-Time View
               </span>
             )}
@@ -403,17 +403,17 @@ function CustomerTransactionsModal({
           ) : (
             <>
               {/* Summary Stats Header */}
-              <div className="mb-4 grid grid-cols-3 gap-px bg-border text-[11px]">
+              <div className="mb-4 grid grid-cols-3 gap-px bg-border text-[13px]">
                 <div className="bg-muted/10 p-2.5 text-center font-mono">
-                  <span className="block text-[9px] uppercase tracking-widest text-muted-foreground">Recency</span>
+                  <span className="block text-[11px] uppercase tracking-widest text-muted-foreground">Recency</span>
                   <span className="font-semibold text-foreground">{data.recency} days</span>
                 </div>
                 <div className="bg-muted/10 p-2.5 text-center font-mono">
-                  <span className="block text-[9px] uppercase tracking-widest text-muted-foreground">Frequency</span>
+                  <span className="block text-[11px] uppercase tracking-widest text-muted-foreground">Frequency</span>
                   <span className="font-semibold text-foreground">{data.frequency} orders</span>
                 </div>
                 <div className="bg-muted/10 p-2.5 text-center font-mono">
-                  <span className="block text-[9px] uppercase tracking-widest text-muted-foreground">Total Revenue</span>
+                  <span className="block text-[11px] uppercase tracking-widest text-muted-foreground">Total Revenue</span>
                   <span className="font-semibold text-foreground">{formatCurrency(data.monetary)}</span>
                 </div>
               </div>
@@ -423,10 +423,10 @@ function CustomerTransactionsModal({
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border bg-muted/20 hover:bg-transparent">
-                      <TableHead className="h-8 px-3 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Invoice No</TableHead>
-                      <TableHead className="h-8 px-3 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Exact Date & Time</TableHead>
-                      <TableHead className="h-8 px-3 font-mono text-[9px] uppercase tracking-wider text-muted-foreground text-right">Quantity</TableHead>
-                      <TableHead className="h-8 px-3 font-mono text-[9px] uppercase tracking-wider text-muted-foreground text-right">Transaction Value</TableHead>
+                      <TableHead className="h-8 px-3 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Invoice No</TableHead>
+                      <TableHead className="h-8 px-3 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Exact Date & Time</TableHead>
+                      <TableHead className="h-8 px-3 font-mono text-[11px] uppercase tracking-wider text-muted-foreground text-right">Quantity</TableHead>
+                      <TableHead className="h-8 px-3 font-mono text-[11px] uppercase tracking-wider text-muted-foreground text-right">Transaction Value</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -456,7 +456,7 @@ function CustomerTransactionsModal({
                   Total Transactions: <strong className="text-foreground">{data.total_transactions}</strong> ({formatNumber(data.total_quantity_all)} items)
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="uppercase tracking-widest text-muted-foreground text-[10px]">Total Value of All Transactions:</span>
+                  <span className="uppercase tracking-widest text-muted-foreground text-[12px]">Total Value of All Transactions:</span>
                   <span className="text-base font-bold text-foreground bg-muted/40 px-2.5 py-1 border border-border">
                     {formatCurrency(data.total_value_all)}
                   </span>

@@ -34,22 +34,22 @@ export function ClusterTable({ threshold }: { threshold: ChurnThreshold }) {
       <Table>
         <TableHeader>
           <TableRow className="border-border hover:bg-transparent">
-            <TableHead className="h-9 w-16 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <TableHead className="h-9 w-16 font-mono text-[12px] uppercase tracking-[0.18em] text-muted-foreground">
               Cluster
             </TableHead>
-            <TableHead className="h-9 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <TableHead className="h-9 text-right font-mono text-[12px] uppercase tracking-[0.18em] text-muted-foreground">
               Size
             </TableHead>
-            <TableHead className="h-9 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <TableHead className="h-9 text-right font-mono text-[12px] uppercase tracking-[0.18em] text-muted-foreground">
               Avg Recency
             </TableHead>
-            <TableHead className="h-9 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <TableHead className="h-9 text-right font-mono text-[12px] uppercase tracking-[0.18em] text-muted-foreground">
               Avg Frequency
             </TableHead>
-            <TableHead className="h-9 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <TableHead className="h-9 text-right font-mono text-[12px] uppercase tracking-[0.18em] text-muted-foreground">
               Avg Monetary
             </TableHead>
-            <TableHead className="h-9 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <TableHead className="h-9 text-right font-mono text-[12px] uppercase tracking-[0.18em] text-muted-foreground">
               Churn rate
             </TableHead>
           </TableRow>

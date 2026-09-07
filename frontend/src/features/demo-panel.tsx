@@ -158,7 +158,7 @@ export function DemoPanel() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 border border-foreground bg-background px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.22em] shadow-lg transition-colors hover:bg-foreground hover:text-background"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 border border-foreground bg-background px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.22em] shadow-lg transition-colors hover:bg-foreground hover:text-background"
       >
         <span>Demo</span>
         <span className="text-[14px] leading-none">{open ? "×" : "↑"}</span>
@@ -169,7 +169,7 @@ export function DemoPanel() {
         <div className="fixed bottom-16 right-6 z-50 w-85 border border-border bg-background shadow-2xl">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
-            <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
+            <p className="font-mono text-[12px] uppercase tracking-[0.28em] text-muted-foreground">
               Purchase Simulator
             </p>
             {history.length > 0 && (
@@ -177,7 +177,7 @@ export function DemoPanel() {
                 type="button"
                 onClick={() => reset.mutate()}
                 disabled={reset.isPending}
-                className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground underline underline-offset-2 transition-colors hover:text-destructive disabled:opacity-40"
+                className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground underline underline-offset-2 transition-colors hover:text-destructive disabled:opacity-40"
               >
                 {reset.isPending ? "Resetting…" : "Reset all"}
               </button>
@@ -190,7 +190,7 @@ export function DemoPanel() {
                 {/* Login Inputs */}
                 <div className="space-y-3">
                   <div>
-                    <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
                       Email
                     </label>
                     <input
@@ -206,7 +206,7 @@ export function DemoPanel() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
                       Password
                     </label>
                     <input
@@ -228,14 +228,14 @@ export function DemoPanel() {
                   type="button"
                   onClick={() => loginMutation.mutate()}
                   disabled={!canLogin}
-                  className="w-full border border-foreground bg-foreground py-2.5 font-mono text-[10px] uppercase tracking-[0.28em] text-background transition-opacity disabled:cursor-not-allowed disabled:opacity-30 enabled:hover:opacity-80"
+                  className="w-full border border-foreground bg-foreground py-2.5 font-mono text-[12px] uppercase tracking-[0.28em] text-background transition-opacity disabled:cursor-not-allowed disabled:opacity-30 enabled:hover:opacity-80"
                 >
                   {loginMutation.isPending ? "Logging in…" : "Login"}
                 </button>
 
                 {/* Login Error */}
                 {loginError && (
-                  <p className="font-mono text-[10px] text-destructive">
+                  <p className="font-mono text-[12px] text-destructive">
                     {loginError}
                   </p>
                 )}
@@ -246,13 +246,13 @@ export function DemoPanel() {
                 <div className="border border-border p-3.5 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1 pr-2">
-                      <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                      <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
                         Authenticated User
                       </p>
                       <p className="font-mono text-xs font-semibold text-foreground truncate" title={loggedInCustomer.email}>
                         {loggedInCustomer.email}
                       </p>
-                      <p className="font-mono text-[10px] text-muted-foreground">
+                      <p className="font-mono text-[12px] text-muted-foreground">
                         ID: #{loggedInCustomer.customerId}
                       </p>
                     </div>
@@ -265,7 +265,7 @@ export function DemoPanel() {
                         setPassword("")
                         setLastResult(null)
                       }}
-                      className="border border-border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.16em] hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors text-muted-foreground"
+                      className="border border-border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.16em] hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors text-muted-foreground"
                     >
                       Logout
                     </button>
@@ -275,7 +275,7 @@ export function DemoPanel() {
                 {/* Product selector dropdown */}
                 <div className="space-y-3">
                   <div>
-                    <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
                       Select Product
                     </label>
                     {products.length === 0 ? (
@@ -300,7 +300,7 @@ export function DemoPanel() {
                   {/* Quantity and Price fields */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                      <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
                         Quantity
                       </label>
                       <input
@@ -313,7 +313,7 @@ export function DemoPanel() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                      <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
                         Unit Price (€)
                       </label>
                       <input
@@ -331,14 +331,14 @@ export function DemoPanel() {
                   type="button"
                   onClick={() => purchase.mutate()}
                   disabled={!canBuy}
-                  className="w-full border border-foreground bg-foreground py-2.5 font-mono text-[10px] uppercase tracking-[0.28em] text-background transition-opacity disabled:cursor-not-allowed disabled:opacity-30 enabled:hover:opacity-80"
+                  className="w-full border border-foreground bg-foreground py-2.5 font-mono text-[12px] uppercase tracking-[0.28em] text-background transition-opacity disabled:cursor-not-allowed disabled:opacity-30 enabled:hover:opacity-80"
                 >
                   {purchase.isPending ? "Processing…" : "Simulate Purchase"}
                 </button>
 
                 {/* Purchase Error */}
                 {purchase.isError && (
-                  <p className="font-mono text-[10px] text-destructive">
+                  <p className="font-mono text-[12px] text-destructive">
                     {purchase.error instanceof Error ? purchase.error.message : "Purchase failed"}
                   </p>
                 )}
@@ -348,10 +348,10 @@ export function DemoPanel() {
             {/* Before / after result */}
             {lastResult && (
               <div className="border border-border p-4 space-y-3">
-                <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
                   Customer #{lastResult.customer_id} — {formatCurrency(lastResult.amount)} added
                 </p>
-                <div className="grid grid-cols-2 gap-px bg-border text-[10px]">
+                <div className="grid grid-cols-2 gap-px bg-border text-[12px]">
                   {(["recency", "frequency", "monetary", "cluster"] as const).map((key) => (
                     <div key={key} className="bg-background px-3 py-2">
                       <p className="font-mono uppercase tracking-[0.16em] text-muted-foreground">{key}</p>
@@ -376,12 +376,12 @@ export function DemoPanel() {
             {/* History */}
             {history.length > 0 && (
               <div>
-                <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
                   Session history ({history.length})
                 </p>
                 <div className="max-h-36 overflow-y-auto space-y-1">
                   {[...history].reverse().map((h, i) => (
-                    <div key={i} className="flex items-center justify-between font-mono text-[10px]">
+                    <div key={i} className="flex items-center justify-between font-mono text-[12px]">
                       <span className="text-muted-foreground">{h.timestamp}</span>
                       <span className="text-muted-foreground">#{h.customer_id}</span>
                       <span className="text-foreground">+{formatCurrency(h.amount)}</span>

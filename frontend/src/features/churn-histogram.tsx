@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts"
+import { Bar, BarChart, CartesianGrid, Cell, Label, XAxis, YAxis } from "recharts"
 import {
   ChartContainer,
   ChartTooltip,
@@ -9,6 +9,13 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { api, type ChurnThreshold } from "@/lib/api"
 import { formatNumber } from "@/lib/format"
+
+const AXIS_LABEL = {
+  fontFamily: "var(--font-mono)",
+  fontSize: 12,
+  letterSpacing: "0.22em",
+  fill: "var(--muted-foreground)",
+} as const
 
 const chartConfig = {
   count: { label: "Customers", color: "var(--primary)" },
@@ -34,7 +41,7 @@ export function ChurnHistogram({
 
   return (
     <figure className="bg-background p-6">
-      <figcaption className="mb-4 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+      <figcaption className="mb-4 flex items-center justify-between font-mono text-[12px] uppercase tracking-[0.22em] text-muted-foreground">
         <span>Figure 3.2</span>
         <span>Threshold: {threshold} Days</span>
       </figcaption>
@@ -54,23 +61,37 @@ export function ChurnHistogram({
           config={chartConfig}
           className={`aspect-16/10 w-full transition-opacity duration-200 ${isFetching ? "opacity-40 pointer-events-none" : "opacity-100"}`}
         >
-          <BarChart accessibilityLayer data={data} margin={{ top: 8, right: 12, left: -4, bottom: 0 }}>
+          <BarChart accessibilityLayer data={data} margin={{ top: 8, right: 16, left: 4, bottom: 24 }}>
             <CartesianGrid vertical={false} strokeDasharray="2 4" stroke="var(--border)" />
             <XAxis
               dataKey="midpoint"
               tickLine={false}
               axisLine={{ stroke: "var(--border)" }}
-              tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--muted-foreground)" }}
+              tick={{ fontFamily: "var(--font-mono)", fontSize: 12, fill: "var(--muted-foreground)" }}
               tickFormatter={(v: number) => v.toFixed(2)}
               minTickGap={20}
-            />
+            >
+              <Label
+                value="CHURN PROBABILITY"
+                position="insideBottom"
+                offset={-16}
+                style={AXIS_LABEL}
+              />
+            </XAxis>
             <YAxis
               tickLine={false}
               axisLine={false}
-              tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--muted-foreground)" }}
+              tick={{ fontFamily: "var(--font-mono)", fontSize: 12, fill: "var(--muted-foreground)" }}
               tickFormatter={(v: number) => formatNumber(v)}
-              width={48}
-            />
+              width={74}
+            >
+              <Label
+                value="CUSTOMERS"
+                angle={-90}
+                position="insideLeft"
+                style={{ ...AXIS_LABEL, textAnchor: "middle" }}
+              />
+            </YAxis>
             <ChartTooltip
               content={
                 <ChartTooltipContent

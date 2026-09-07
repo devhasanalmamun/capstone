@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import {
   CartesianGrid,
+  Label,
   Line,
   LineChart,
   ReferenceLine,
@@ -17,6 +18,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { api } from "@/lib/api"
 import { formatNumber } from "@/lib/format"
 
+const AXIS_LABEL = {
+  fontFamily: "var(--font-mono)",
+  fontSize: 12,
+  letterSpacing: "0.22em",
+  fill: "var(--muted-foreground)",
+} as const
+
 const chartConfig = {
   wcss: { label: "WCSS", color: "var(--chart-1)" },
 } satisfies ChartConfig
@@ -30,10 +38,10 @@ export function ElbowPlot() {
   return (
     <figure className="bg-background p-6">
       <figcaption className="mb-4 flex items-baseline justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+        <span className="font-mono text-[12px] uppercase tracking-[0.22em] text-muted-foreground">
           Figure 5.2
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+        <span className="font-mono text-[12px] uppercase tracking-[0.22em] text-muted-foreground">
           K = 1 .. 9
         </span>
       </figcaption>
@@ -47,10 +55,10 @@ export function ElbowPlot() {
       {error ? (
         <p className="text-destructive">Failed to load elbow.</p>
       ) : isLoading || !data ? (
-        <Skeleton className="aspect-[16/8] w-full" />
+        <Skeleton className="h-[340px] w-full" />
       ) : (
-        <ChartContainer config={chartConfig} className="aspect-[16/8] w-full">
-          <LineChart data={data} margin={{ top: 16, right: 16, left: -4, bottom: 8 }}>
+        <ChartContainer config={chartConfig} className="h-[340px] w-full">
+          <LineChart data={data} margin={{ top: 16, right: 20, left: 0, bottom: 24 }}>
             <CartesianGrid vertical={false} strokeDasharray="2 4" stroke="var(--border)" />
             <XAxis
               dataKey="k"
@@ -58,23 +66,37 @@ export function ElbowPlot() {
               axisLine={{ stroke: "var(--border)" }}
               tick={{
                 fontFamily: "var(--font-mono)",
-                fontSize: 10,
+                fontSize: 12,
                 fill: "var(--muted-foreground)",
               }}
-            />
+            >
+              <Label
+                value="CLUSTERS (K)"
+                position="insideBottom"
+                offset={-16}
+                style={AXIS_LABEL}
+              />
+            </XAxis>
             <YAxis
               tickLine={false}
               axisLine={false}
               tick={{
                 fontFamily: "var(--font-mono)",
-                fontSize: 10,
+                fontSize: 12,
                 fill: "var(--muted-foreground)",
               }}
-              width={48}
+              width={66}
               tickFormatter={(v: number) =>
                 v >= 1000 ? `${(v / 1000).toFixed(0)}k` : formatNumber(v)
               }
-            />
+            >
+              <Label
+                value="WCSS"
+                angle={-90}
+                position="insideLeft"
+                style={{ ...AXIS_LABEL, textAnchor: "middle" }}
+              />
+            </YAxis>
             <ChartTooltip
               content={
                 <ChartTooltipContent
@@ -93,7 +115,7 @@ export function ElbowPlot() {
                 value: "K = 4",
                 position: "top",
                 fill: "var(--primary)",
-                fontSize: 10,
+                fontSize: 12,
                 fontFamily: "var(--font-mono)",
               }}
             />

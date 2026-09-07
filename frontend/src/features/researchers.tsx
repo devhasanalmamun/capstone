@@ -14,14 +14,14 @@ export function Researchers() {
           key={r.roll}
           className="flex min-h-[180px] flex-col justify-start bg-background p-7 pb-8 transition-colors hover:bg-secondary/50"
         >
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          <p className="font-mono text-[12px] uppercase tracking-[0.22em] text-muted-foreground">
             Researcher &middot; {String(i + 1).padStart(2, "0")}
           </p>
           <div>
             <p className="font-heading text-[22px] font-medium leading-[1.1] tracking-tight mt-6">
               {r.name}
             </p>
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            <p className="mt-2 font-mono text-[12px] uppercase tracking-[0.22em] text-muted-foreground">
               {r.roll}
             </p>
           </div>

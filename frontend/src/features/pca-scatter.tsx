@@ -36,10 +36,10 @@ export function PcaScatter() {
   return (
     <figure className="bg-background p-6">
       <figcaption className="mb-4 flex items-baseline justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+        <span className="font-mono text-[12px] uppercase tracking-[0.22em] text-muted-foreground">
           Figure 3.1
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+        <span className="font-mono text-[12px] uppercase tracking-[0.22em] text-muted-foreground">
           PC1 &times; PC2
         </span>
       </figcaption>
@@ -57,14 +57,14 @@ export function PcaScatter() {
         <Skeleton className="aspect-16/10 w-full" />
       ) : (
         <ChartContainer config={chartConfig} className="aspect-16/10 w-full">
-          <ScatterChart accessibilityLayer margin={{ top: 8, right: 12, left: -4, bottom: 0 }}>
+          <ScatterChart accessibilityLayer margin={{ top: 8, right: 12, left: 2, bottom: 0 }}>
             <CartesianGrid strokeDasharray="2 4" stroke="var(--border)" />
             <XAxis
               type="number"
               dataKey="pca1"
               tickLine={false}
               axisLine={{ stroke: "var(--border)" }}
-              tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--muted-foreground)" }}
+              tick={{ fontFamily: "var(--font-mono)", fontSize: 12, fill: "var(--muted-foreground)" }}
               tickFormatter={(v: number) => v.toFixed(1)}
             />
             <YAxis
@@ -72,7 +72,7 @@ export function PcaScatter() {
               dataKey="pca2"
               tickLine={false}
               axisLine={{ stroke: "var(--border)" }}
-              tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--muted-foreground)" }}
+              tick={{ fontFamily: "var(--font-mono)", fontSize: 12, fill: "var(--muted-foreground)" }}
               tickFormatter={(v: number) => v.toFixed(1)}
             />
             <ZAxis range={[18, 18]} />

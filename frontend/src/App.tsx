@@ -29,21 +29,21 @@ export default function App() {
 
   return (
     <div className="min-h-svh bg-background text-foreground">
-      <main className="mx-auto max-w-300 px-6 pb-24 pt-12 md:px-10 md:pt-16">
+      <main className="mx-auto max-w-[100rem] px-5 pb-24 pt-12 md:px-8 md:pt-16">
         <header className={cn(REVEAL, "mb-20 md:mb-24")}>
           <div className="mb-10 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
             <div className="flex items-center gap-3">
-              <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-muted-foreground">
+              <p className="font-mono text-[13px] uppercase tracking-[0.32em] text-muted-foreground">
                 The Segmentation Report
               </p>
-              <span className="font-mono text-[11px] text-muted-foreground/40">&middot;</span>
-              <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-muted-foreground">
+              <span className="font-mono text-[13px] text-muted-foreground/40">&middot;</span>
+              <p className="font-mono text-[13px] uppercase tracking-[0.32em] text-muted-foreground">
                 Vol. I &middot; 24 July 2026
               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground whitespace-nowrap font-medium">
+              <span className="font-mono text-[12px] uppercase tracking-[0.22em] text-muted-foreground whitespace-nowrap font-medium">
                 Threshold
               </span>
               <Select
@@ -84,7 +84,7 @@ export default function App() {
                 Sourced from the UCI Online Retail dataset,{" "}
                 {meta ? `${meta.min_date} through ${meta.max_date}` : "loading…"}.
               </p>
-              <dl className="mt-6 grid grid-cols-3 gap-4 border-t border-border pt-4 font-mono text-[10px] uppercase tracking-[0.18em]">
+              <dl className="mt-6 grid grid-cols-3 gap-4 border-t border-border pt-4 font-mono text-[12px] uppercase tracking-[0.18em]">
                 <div>
                   <dt className="text-muted-foreground">Source</dt>
                   <dd className="mt-1.5 font-heading text-base normal-case tracking-normal text-foreground">
@@ -111,13 +111,12 @@ export default function App() {
         </header>
 
         <section className={cn(REVEAL, "delay-[90ms] mb-20")}>
-          <SectionHeading number="01" label="Overview" caption="Four indicators" />
+          <SectionHeading label="Overview" caption="Four indicators" />
           <SummaryCards threshold={threshold} />
         </section>
 
         <section className={cn(REVEAL, "delay-[180ms] mb-20")}>
           <SectionHeading
-            number="02"
             label="The Segments"
             caption="Means by cluster"
           />
@@ -126,7 +125,6 @@ export default function App() {
 
         <section className={cn(REVEAL, "delay-[270ms] mb-20")}>
           <SectionHeading
-            number="03"
             label="Distribution"
             caption="PCA projection &middot; Churn density"
           />
@@ -138,7 +136,6 @@ export default function App() {
 
         <section className={cn(REVEAL, "delay-[360ms] mb-20")}>
           <SectionHeading
-            number="04"
             label="Directory"
             caption="Per-customer detail"
           />
@@ -147,7 +144,6 @@ export default function App() {
 
         <section className={cn(REVEAL, "delay-[450ms] mb-20")}>
           <SectionHeading
-            number="05"
             label="Method"
             caption="Why log-scale &middot; Why K=4"
           />
@@ -159,7 +155,6 @@ export default function App() {
 
         <section className={cn(REVEAL, "delay-[540ms]")}>
           <SectionHeading
-            number="06"
             label="Researchers"
             caption="Compiled by five undergraduates"
 
@@ -169,16 +164,6 @@ export default function App() {
 
         <DemoPanel />
 
-        <footer className={cn(REVEAL, "delay-[630ms] mt-28 text-center")}>
-          <div className="mb-3 flex items-center justify-center gap-4 text-muted-foreground">
-            <span className="h-px w-16 bg-border" />
-            <span className="font-heading text-lg leading-none">¶</span>
-            <span className="h-px w-16 bg-border" />
-          </div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.32em] text-muted-foreground">
-            Set in Fraunces &amp; Geist &middot; End of report
-          </p>
-        </footer>
       </main>
     </div>
   )

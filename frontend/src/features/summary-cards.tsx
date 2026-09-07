@@ -16,7 +16,7 @@ export function SummaryCards({ threshold }: { threshold: ChurnThreshold }) {
 
   const cards = [
     { label: "Customers", value: data && formatNumber(data.total_customers) },
-    { label: "Revenue", value: data && formatCurrency(data.total_revenue) },
+    { label: "Revenue", value: data && formatCurrency(data.total_revenue, 0) },
     { label: "Churn rate", value: data && formatPercent(data.churn_rate) },
     { label: "Clusters", value: data && formatNumber(data.num_clusters) },
   ]
@@ -24,11 +24,11 @@ export function SummaryCards({ threshold }: { threshold: ChurnThreshold }) {
   return (
     <div className={`grid grid-cols-2 gap-px bg-border md:grid-cols-4 transition-opacity duration-200 ${isFetching && !isLoading ? "opacity-40" : "opacity-100"}`}>
       {cards.map((c) => (
-        <div key={c.label} className="bg-background p-7 pb-8">
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+        <div key={c.label} className="bg-background p-5 pb-6 md:p-7 md:pb-8">
+          <p className="font-mono text-[12px] uppercase tracking-[0.22em] text-muted-foreground">
             {c.label}
           </p>
-          <div className="mt-5 font-heading text-[44px] font-medium leading-none tracking-tight tabular-nums">
+          <div className="mt-5 font-heading text-[clamp(1.5rem,2.6vw,44px)] font-medium leading-none tracking-tight tabular-nums">
             {isLoading || !c.value ? <Skeleton className="h-10 w-32" /> : c.value}
           </div>
         </div>
